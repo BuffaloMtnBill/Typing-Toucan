@@ -1,6 +1,6 @@
 # Typing Toucan
 
-A Kotlin-based Flappy Bird clone with a typing mechanic, built using LibGDX.
+A Kotlin-based Typing Toucan game with a typing mechanic, built using LibGDX.
 
 ## How to Run
 
@@ -11,6 +11,6 @@ To run the game, open a terminal in the project root and execute:
 ```
 
 ## Features
-- Classic Flappy Bird mechanics
+- Classic flying mechanics
 - Typing system: Type letters to flap!
 - Difficulty levels
