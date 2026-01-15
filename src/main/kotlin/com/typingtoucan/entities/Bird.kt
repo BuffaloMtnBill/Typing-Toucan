@@ -2,24 +2,45 @@ package com.typingtoucan.entities
 
 import com.badlogic.gdx.math.Rectangle
 
+/**
+ * Represents the player controllable bird entity (Toucan).
+ *
+ * Handles physics validation, position updates, and rendering of the bird.
+ *
+ * @property x The horizontal position of the bird.
+ * @property y The vertical position of the bird.
+ */
 class Bird(var x: Float, var y: Float) {
-    // 400% scale per user request (40f -> 160f)
-    // User Update: Width -25% (160->120), Height +25% (220->275)
-    // User Update 2: Height -25% (275 -> 206.25), Width Unchanged (120)
+    /** The visual width of the bird sprite. Scaled to 400% then adjusted (-25%). */
     val width = 140f
+    
+    /** The visual height of the bird sprite. Scaled to 400% then adjusted (+25% then -25%). */
     val height = 206f
 
-    // Hitbox fixed at 40x30px centered (User request -10px)
+    /** The width of the collision hitbox. */
     val collisionWidth = 40f
+    
+    /** The height of the collision hitbox. */
     val collisionHeight = 30f
 
+    /** Current vertical velocity of the bird. */
     var velocity = 0f
+    
+    /** Gravity applied to the velocity per frame. */
     var gravity = -0.5f
+    
+    /** Vertical impulse applied when flapping. */
     var flapStrength = 10f
 
-    // Bounds initialized with collision size
+    /** Rectangle representing the collision area of the bird. */
     val bounds = Rectangle(x, y, collisionWidth, collisionHeight)
 
+    /**
+     * Updates the bird's physics for a single frame.
+     *
+     * Applies gravity to velocity, updates position, clamps position to the top of the screen,
+     * and synchronizes the collision hitbox with the visual sprite.
+     */
     fun update() {
         velocity += gravity
         y += velocity
@@ -39,10 +60,19 @@ class Bird(var x: Float, var y: Float) {
         bounds.setPosition(centerX, centerY)
     }
 
+    /**
+     * Applies an upward impulse to the bird, simulating a flap.
+     */
     fun flap() {
         velocity = flapStrength
     }
 
+    /**
+     * Renders the bird sprite.
+     *
+     * @param batch The [SpriteBatch] used for drawing.
+     * @param region The [TextureRegion] of the current animation frame to draw.
+     */
     fun render(
             batch: com.badlogic.gdx.graphics.g2d.SpriteBatch,
             region: com.badlogic.gdx.graphics.g2d.TextureRegion

@@ -4,6 +4,12 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.audio.Music
 import com.badlogic.gdx.audio.Sound
 
+/**
+ * Manages the loading, playing, and lifecycle of all audio assets in the game.
+ *
+ * Handles both short-duration sound effects and long-duration background music.
+ * Supports enabling/disabling of sound and music separateley.
+ */
 class SoundManager {
     private val flapSounds = com.badlogic.gdx.utils.Array<Sound>()
     private val scoreSounds = com.badlogic.gdx.utils.Array<Sound>()
@@ -13,7 +19,10 @@ class SoundManager {
     private var errorSound: Sound? = null
     private var bgMusic: Music? = null
 
+    /** Controls whether sound effects are played. */
     var soundEnabled: Boolean = true
+    
+    /** Controls whether background music is played. Updates playback immediately. */
     var musicEnabled: Boolean = true
         set(value) {
             field = value
@@ -24,11 +33,13 @@ class SoundManager {
             }
         }
 
+    /** Available music tracks. */
     enum class MusicTrack {
         WHAT,
         DARK_FOREST
     }
 
+    /** The currently selected background music track. Switches track immediately upon change. */
     var currentTrack: MusicTrack = MusicTrack.WHAT
         set(value) {
             if (field != value) {
@@ -98,34 +109,41 @@ class SoundManager {
         }
     }
 
+    /** Plays a random flap sound effect. */
     fun playFlap() {
         if (soundEnabled && flapSounds.size > 0) {
             flapSounds.random().play(0.5f)
         }
     }
 
+    /** Plays a random score sound effect. */
     fun playScore() {
         if (soundEnabled && scoreSounds.size > 0) {
             scoreSounds.random().play(0.5f)
         }
     }
 
+    /** Plays the crash sound effect. */
     fun playCrash() {
         if (soundEnabled) crashSound?.play(0.7f)
     }
 
+    /** Plays the primary level up sound. */
     fun playLevelUp() {
         if (soundEnabled) levelUpSound?.play(1.0f) // Loud and proud
     }
 
+    /** Plays the practice mode level up / variation sound. */
     fun playLevelUpPractice() {
         if (soundEnabled) levelUpPracticeSound?.play(1.0f)
     }
 
+    /** Plays the error sound effect. */
     fun playError() {
         if (soundEnabled) errorSound?.play(0.6f)
     }
 
+    /** Starts playing the background music if enabled and not already playing. */
     fun playMusic() {
         if (!musicEnabled) return
         if (bgMusic == null) {
@@ -159,10 +177,12 @@ class SoundManager {
         }
     }
 
+    /** Stops the currently playing background music. */
     fun stopMusic() {
         bgMusic?.stop()
     }
 
+    /** Disposes of all audio assets. */
     fun dispose() {
         flapSounds.forEach { it.dispose() }
         scoreSounds.forEach { it.dispose() }

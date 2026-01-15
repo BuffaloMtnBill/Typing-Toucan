@@ -1,7 +1,13 @@
 package com.typingtoucan.systems
 
+/**
+ * Standard game mode source where characters are unlocked progressively.
+ *
+ * Managing stages of character unlocks (from home row outward) and calculates
+ * weighted random selection to prioritize new or struggling keys.
+ */
 class ClassicSource : TypingSource {
-    // Full Character Set (Lower -> Upper -> Numbers)
+    /** Stages of character sets to unlock progressively. */
     private val progressionStages =
             listOf(
                     "asdfjkl;ghqweruioptyzxcvm,./bn1234567890-", // Main Sequence
@@ -94,6 +100,11 @@ class ClassicSource : TypingSource {
         weights[char] = 10
     }
 
+    /**
+     * Unlocks the next character from the progression stages.
+     *
+     * @return List of newly added characters.
+     */
     override fun expandPool(): List<Char> {
         val addedChars = mutableListOf<Char>()
 
@@ -133,7 +144,7 @@ class ClassicSource : TypingSource {
         return addedChars
     }
 
-    // Support shrinking?
+    /** Removes the most recently unlocked character (debugging tool). */
     fun shrinkPool() {
         if (unlockedBaseChars.size > 1) {
             unlockedBaseChars.removeAt(unlockedBaseChars.lastIndex)
@@ -156,6 +167,6 @@ class ClassicSource : TypingSource {
         return currentStageIndex >= progressionStages.size
     }
 
-    // For compatibility with GameScreen's "isFullyUnlocked"
+    /** For compatibility with GameScreen's "isFullyUnlocked". */
     fun isFullyUnlocked() = isComplete()
 }

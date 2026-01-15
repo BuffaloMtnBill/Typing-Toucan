@@ -1,5 +1,10 @@
 package com.typingtoucan.systems
 
+/**
+ * Typing source that serves a sequential text string.
+ *
+ * @param text The full text to be typed.
+ */
 class TextSnippetSource(private val text: String) : TypingSource {
     override fun setCapitalsEnabled(enabled: Boolean) {
         // No-op for text mode

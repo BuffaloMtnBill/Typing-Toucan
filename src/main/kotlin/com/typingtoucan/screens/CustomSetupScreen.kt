@@ -17,6 +17,13 @@ import com.typingtoucan.TypingToucanGame
 import com.typingtoucan.systems.CustomPoolSource
 import com.typingtoucan.systems.DifficultyManager
 
+/**
+ * Screen used to configure a custom practice session where the player selects specific letters to practice.
+ *
+ * Provides a virtual keyboard UI allowing users to toggle characters and Shift state.
+ *
+ * @param game The main game instance.
+ */
 class CustomSetupScreen(val game: TypingToucanGame) : Screen, InputProcessor {
     private val camera = OrthographicCamera().apply { setToOrtho(false, 800f, 600f) }
     private val viewport = com.badlogic.gdx.utils.viewport.ExtendViewport(800f, 600f, camera)
@@ -25,12 +32,13 @@ class CustomSetupScreen(val game: TypingToucanGame) : Screen, InputProcessor {
     private val shapeRenderer = ShapeRenderer()
     private val layout = GlyphLayout()
 
-    // Key Grid: Visual Representation (A-Z, 0-9)
-    // We map char to rectangle for rendering
+    /** String containing all available standard keys for the grid layout. */
     private val standardKeys = "abcdefghijklmnopqrstuvwxyz1234567890"
+    
+    /** Maps characters to their corresponding visual rectangles on the screen. */
     private val keyRects = mutableMapOf<Char, Rectangle>()
 
-    // Store Selected Characters (Case Sensitive)
+    /** Set of actively selected characters (case sensitive). */
     private val selectedChars = mutableSetOf<Char>()
 
     private val startRect = Rectangle()
@@ -38,8 +46,10 @@ class CustomSetupScreen(val game: TypingToucanGame) : Screen, InputProcessor {
     private val instructionText =
             "Toggle letters to practice.\nPress shift to toggle capital / lowercase mix ON/OFF for selected letters."
 
-    // Moved here to ensure initialization before init block calls layoutGrid
+    /** Rectangle for the Shift/Caps toggle button. */
     private val capsRect = Rectangle()
+    
+    /** Tracks the state of the Shift toggle. */
     private var isShiftActive = false
     private lateinit var instructionFont: BitmapFont
 
@@ -67,6 +77,12 @@ class CustomSetupScreen(val game: TypingToucanGame) : Screen, InputProcessor {
         layoutGrid()
     }
 
+    /**
+     * Calculates and sets the layout positions for all keys on the virtual keyboard grid.
+     *
+     * Arranges keys in standard QWERTY rows, centered on the screen.
+     * Also positions the Shift, Start, and Back buttons.
+     */
     private fun layoutGrid() {
         val row1 = "1234567890"
         val row2 = "qwertyuiop"
@@ -340,6 +356,13 @@ class CustomSetupScreen(val game: TypingToucanGame) : Screen, InputProcessor {
         return false
     }
 
+    /**
+     * Toggles the selection state of a character.
+     *
+     * Adds the character to [selectedChars] if not present, otherwise removes it.
+     *
+     * @param char The character to toggle.
+     */
     private fun toggleChar(char: Char) {
         if (selectedChars.contains(char)) {
             selectedChars.remove(char)
@@ -348,6 +371,12 @@ class CustomSetupScreen(val game: TypingToucanGame) : Screen, InputProcessor {
         }
     }
 
+    /**
+     * Attempts to start the game with the current selection.
+     *
+     * If valid characters are selected, creates a custom typing pool based on the
+     * current selection and shift state, then transitions to [GameScreen].
+     */
     private fun tryStartGame() {
         if (selectedChars.isNotEmpty()) {
             // Generate Pool based on Global Shift

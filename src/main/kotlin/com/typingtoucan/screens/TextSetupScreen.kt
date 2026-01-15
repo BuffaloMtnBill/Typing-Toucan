@@ -16,6 +16,11 @@ import com.typingtoucan.TypingToucanGame
 import com.typingtoucan.systems.DifficultyManager
 import com.typingtoucan.systems.TextSnippetSource
 
+/**
+ * Screen used to select a predefined text snippet for the "Text Mode" practice session.
+ *
+ * @param game The main game instance.
+ */
 class TextSetupScreen(val game: TypingToucanGame) : Screen {
     private val camera = OrthographicCamera().apply { setToOrtho(false, 800f, 600f) }
     private val viewport = com.badlogic.gdx.utils.viewport.ExtendViewport(800f, 600f, camera)
@@ -24,6 +29,7 @@ class TextSetupScreen(val game: TypingToucanGame) : Screen {
     private val shapeRenderer = ShapeRenderer()
     private val layout = GlyphLayout()
 
+    /** List of predefined text snippets available for selection. */
     private val snippets =
             listOf(
                     "Pangrams" to

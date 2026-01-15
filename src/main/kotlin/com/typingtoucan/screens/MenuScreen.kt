@@ -17,6 +17,14 @@ import com.typingtoucan.TypingToucanGame
 import com.typingtoucan.systems.DifficultyManager
 import com.typingtoucan.utils.SaveManager
 
+/**
+ * The primary menu screen of the game.
+ *
+ * Handles navigation between different game modes (Start Game, Custom Mode, Text Mode),
+ * options configuration, and viewing credits.
+ *
+ * @param game The main game instance.
+ */
 class MenuScreen(val game: TypingToucanGame) : Screen {
     private val stage = Stage(ScreenViewport())
     private lateinit var backgroundTexture: Texture
@@ -29,10 +37,16 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
     private val shapeRenderer = ShapeRenderer()
     private val layout = GlyphLayout()
 
-    // Menu State
+    /** List of main menu options. */
     private val options = listOf("Start Game", "Custom Mode", "Text Mode", "Options", "Credits")
+    
+    /** List of difficulty levels available for selection. */
     private val difficultyOptions = listOf("Easy", "Normal", "Hard", "Insane", "Back")
+    
+    /** List of settings available in the options submenu. */
     private val optionsMenuItems = listOf("Sound", "Music", "Music Track", "Back")
+    
+    /** Index of the currently selected menu item. */
     private var selectedIndex = 0
     private var isDifficultySelect = false
     private var isOptionsSelect = false

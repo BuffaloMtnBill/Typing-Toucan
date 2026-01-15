@@ -17,6 +17,17 @@ import com.typingtoucan.entities.Neck
 import com.typingtoucan.systems.DifficultyManager
 import com.typingtoucan.utils.SaveManager
 
+/**
+ * The core gameplay screen.
+ *
+ * Orchestrates the game loop, including entity updates ([Bird], [Neck]),
+ * typing queue processing, rendering, and collision detection.
+ *
+ * @param game The main game instance.
+ * @param difficulty The chosen [DifficultyManager.Difficulty] level.
+ * @param isPracticeMode Whether the game is running in practice mode (no death).
+ * @param customSource Optional custom text source for typing content.
+ */
 class GameScreen(
         private val game: TypingToucanGame,
         var difficulty: DifficultyManager.Difficulty = DifficultyManager.Difficulty.NORMAL,

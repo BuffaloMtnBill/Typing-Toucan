@@ -1,5 +1,12 @@
 package com.typingtoucan.systems
 
+/**
+ * Typing source that uses a fixed list of characters provided by the user.
+ *
+ * Used for practice mode where the user selects specific keys to focus on.
+ *
+ * @param characters The list of characters to sample from.
+ */
 class CustomPoolSource(private val characters: List<Char>) : TypingSource {
 
     override fun setCapitalsEnabled(enabled: Boolean) {

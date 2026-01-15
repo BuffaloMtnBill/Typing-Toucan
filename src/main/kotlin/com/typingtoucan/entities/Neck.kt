@@ -5,53 +5,59 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.math.Rectangle
 import kotlin.random.Random
 
+/**
+ * Represents an obstacle pair (necks/snakes) that the bird must fly through.
+ *
+ * Manages the position, gap size, and rendering of the top and bottom obstacles.
+ *
+ * @property x The horizontal position of the obstacle.
+ * @property gapCenterY The vertical center of the gap between the obstacles.
+ * @property isSnake Whether this obstacle uses snake graphics instead of giraffe necks.
+ */
 class Neck(var x: Float, val gapCenterY: Float, val isSnake: Boolean = false) {
+    /** Index for selecting random head variations (if applicable). */
     val headIndex = Random.nextInt(5)
 
-    // Hitbox dimensions
-    val width = 80f // Gameplay width (narrower than visual if transparent)
+    /** Width of the collision hitbox. */
+    val width = 80f
 
-    // Visual dimensions
-    // Asset is 512x2048 (AspectRatio 1:4 or 0.25 width/height)
+    // Visual dimensions (Asset is 512x2048, aspect ratio 1:4)
     private val DRAW_WIDTH = 120f
-    private val DRAW_HEIGHT = 480f // 120 * 4
+    private val DRAW_HEIGHT = 480f
 
-    // Gap settings
+    /** The vertical space between the top and bottom obstacles. */
     val gap = 220f
 
-    // We want the GAP to be respected.
-    // The obstacles are just visual tips.
-    // The user said: "Use these graphics for the obstacles rather than dealing with tiling."
-    // Does this mean the obstacle is ONLY 300px tall?
-    // If the gap is high up, the bottom neck needs to reach it.
-    // Screen height 600. If gap is at 400..600. Bottom neck top is at 400.
-    // It needs to go down to 0. So 400px height.
-    // If sprite is 300px, there is a gap at the bottom.
-    // However, tiling is "off the table".
-    // I will assume for now we just draw the sprite anchored at the gap edge.
-    // If it floats, it floats (or maybe the user wants it to look like it's coming from offscreen).
-    // For now: Draw sprite anchored at the gap.
+    /** Minimum height for the neck to be visible. */
+    val minNeckHeight = 50f
 
-    val minNeckHeight = 50f // Arbitrary min height near edges
-
-    // Bottom Neck Top = Center - Half Gap
+    /** Top Y-coordinate of the bottom obstacle. */
     val bottomHeight = gapCenterY - gap / 2f
 
-    // Top Neck Bottom = Center + Half Gap
+    /** Bottom Y-coordinate of the top obstacle. */
     val topY = gapCenterY + gap / 2f
 
-    // Top Height = Arbitrary large value or we don't strictly need height for bounds unless we
-    // clamp?
-    // Let's assume ScreenHeight max is ~800, so extending up 1000 is safe.
-    // Actually Logic: TopBounds starts at topY, extends UP.
-    val topHeight = 2000f // Plenty of head room
+    /** Height of the top obstacle bounds. Uses a large value to extend off-screen. */
+    val topHeight = 2000f
 
+    /** Collision bounds for the bottom obstacle. */
     val bottomBounds = Rectangle(x, 0f, width, bottomHeight)
+    
+    /** Collision bounds for the top obstacle. */
     val topBounds = Rectangle(x, topY, width, topHeight)
 
+    /** Tracks if this obstacle has been successfully passed by the player. */
     var scored = false
+    
+    /** Tracks if a collision has occurred with this obstacle. */
     var collided = false
 
+    /**
+     * Updates the horizontal position of the obstacle.
+     *
+     * @param delta Time elapsed since the last frame.
+     * @param speed The speed at which the obstacle moves to the left.
+     */
     fun update(delta: Float, speed: Float) {
         x -= speed * delta
         bottomBounds.setX(x)
@@ -60,21 +66,26 @@ class Neck(var x: Float, val gapCenterY: Float, val isSnake: Boolean = false) {
         bottomBounds.setWidth(width)
     }
 
+    /**
+     * Renders the top and bottom obstacles.
+     *
+     * The sprites are drawn centered horizontally relative to the hitbox logic,
+     * and anchored to the edges of the gap.
+     *
+     * @param batch The [SpriteBatch] used for drawing.
+     * @param texture The texture to use for the obstacles.
+     */
     fun render(batch: SpriteBatch, texture: Texture) {
         // Calculate centered draw X
-        // Hitbox center: x + width/2
-        // Draw center: drawX + DRAW_WIDTH/2
         // drawX = x + width/2 - DRAW_WIDTH/2
         val drawX = x + (width / 2) - (DRAW_WIDTH / 2)
 
         // --- BOTTOM NECK ---
         // Top of sprite aligned with bottomHeight
-        // Y = bottomHeight - DRAW_HEIGHT
         batch.draw(texture, drawX, bottomHeight - DRAW_HEIGHT, DRAW_WIDTH, DRAW_HEIGHT)
 
         // --- TOP NECK ---
-        // Bottom of sprite aligned with topY
-        // Flipped vertically
+        // Bottom of sprite aligned with topY, flipped vertically
         batch.draw(
                 texture,
                 drawX,
