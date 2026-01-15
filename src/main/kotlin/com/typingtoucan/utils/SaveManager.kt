@@ -32,6 +32,12 @@ object SaveManager {
         return prefs.getInteger(HIGH_SCORE_KEY, 0)
     }
 
+    /** Resets the high score to 0. */
+    fun resetHighScore() {
+        prefs.putInteger(HIGH_SCORE_KEY, 0)
+        prefs.flush()
+    }
+
     private const val CAPITALS_KEY = "capitalsEnabled"
 
     /** Saves the user's preference for capital letters. */

@@ -60,6 +60,9 @@ class TypingToucanGame : Game() {
         for (i in 0..3) assetManager.load("assets/toucan_$i.png", Texture)
         assetManager.load("assets/toucan_pain.png", Texture)
 
+        // Block until all assets are loaded
+        assetManager.finishLoading()
+
         setScreen(MenuScreen(this))
     }
 

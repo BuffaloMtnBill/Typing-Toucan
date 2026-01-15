@@ -27,12 +27,14 @@ import com.typingtoucan.utils.SaveManager
  * @param difficulty The chosen [DifficultyManager.Difficulty] level.
  * @param isPracticeMode Whether the game is running in practice mode (no death).
  * @param customSource Optional custom text source for typing content.
+ * @param isAutoplay Whether the game is running in autoplay mode (AI types for you).
  */
 class GameScreen(
         private val game: TypingToucanGame,
         var difficulty: DifficultyManager.Difficulty = DifficultyManager.Difficulty.NORMAL,
         private val isPracticeMode: Boolean = false,
-        private val customSource: com.typingtoucan.systems.TypingSource? = null
+        private val customSource: com.typingtoucan.systems.TypingSource? = null,
+        private val isAutoplay: Boolean = false
 ) : Screen, InputProcessor {
     private val camera = OrthographicCamera().apply { setToOrtho(false, 800f, 600f) }
     private val viewport = com.badlogic.gdx.utils.viewport.ExtendViewport(800f, 600f, camera)
@@ -116,8 +118,11 @@ class GameScreen(
     private var flashTimer = 0f // Timer for green "level up" flash
     private var justUnlockedChar = ""
     private var milestoneTimer = 0f // Timer for milestone "pulse" effect
+    private var textAnimTimer = 1f
+    private var lastLineIndex = -1
     private var level = 1
     private var totalNecksSpawned = 0
+    private var autoplayTimer = 0f
 
     // Weight Flash
     private var weightFlashValue = 0
@@ -320,7 +325,8 @@ class GameScreen(
     }
 
     override fun render(delta: Float) {
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+        // Handle Input for Pause/Back
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE) || Gdx.input.isKeyJustPressed(Input.Keys.BACK)) {
             if (pauseState == PauseState.VICTORY) {
                 game.screen = MenuScreen(game)
             } else if (pauseState == PauseState.NONE) {
@@ -332,6 +338,7 @@ class GameScreen(
             } else {
                 pauseState = PauseState.NONE
             }
+            // Consumed, don't propagate Back action to OS if possible (LibGDX usually handles this)
         }
 
         // Handle Enter for Victory
@@ -345,6 +352,16 @@ class GameScreen(
         if (gameStarted && pauseState == PauseState.NONE) {
             update(delta)
         } else {
+            // Auto-Start for Credits Mode
+            if (!gameStarted && isAutoplay && pauseState == PauseState.NONE) {
+                // Determine start character (first in queue)
+                if (typingQueue.queue.isNotEmpty()) {
+                    val startChar = typingQueue.queue.first()
+                    // Simulate key press
+                    keyTyped(startChar)
+                }
+            }
+
             // If paused or ready state, animate bird in place?
             if (pauseState == PauseState.NONE) {
                 // Ready state (Type to Start)
@@ -360,6 +377,40 @@ class GameScreen(
     }
 
     private fun update(delta: Float) {
+        if (isAutoplay) {
+             autoplayTimer -= delta
+             if (autoplayTimer <= 0) {
+                  autoplayTimer = 0.06f // Approx 16 chars/sec
+                  if (typingQueue.queue.isNotEmpty()) {
+                      keyTyped(typingQueue.queue.first())
+                  }
+             }
+             
+             if (gameStarted) {
+                 // Simple Flap AI
+                 // Find target pipe gap
+                 var targetY = viewport.worldHeight / 2f
+                 // Look for closest pipe ahead
+                 for (neck in necks) {
+                     // small buffer on X (bird.x + bird.width)
+                     if (neck.x + neck.width > bird.x) {
+                         // Use gapCenterY directly from Neck entity
+                         // Offset down slightly so Bird Body (above Y) centers in gap
+                         targetY = neck.gapCenterY - 20f 
+                         break
+                     }
+                 }
+                 
+                 // Flap if below target
+                 // Increase velocity cap to allow steep climbs
+                 if (bird.y < targetY && bird.velocity < 250f) {
+                     bird.flap()
+                     // Mute flap sound in credits? User didn't say.
+                     // soundManager.playFlap() 
+                 }
+             }
+        }
+
         bird.update()
         stateTime += delta
 
@@ -497,8 +548,8 @@ class GameScreen(
                             (Intersector.overlaps(bird.bounds, neck.bottomBounds) ||
                                     Intersector.overlaps(bird.bounds, neck.topBounds))
             ) {
-                if (!isPracticeMode) {
-                    // Neck collision is now non-fatal
+                if (!isPracticeMode || customSource is com.typingtoucan.systems.TextSnippetSource) {
+                    // Neck collision is now non-fatal for Practice/Text too (just penalizes)
                     neck.collided = true
                     soundManager.playCrash()
                     hurtTimer = 0.5f // Flash red and show pain sprite
@@ -506,10 +557,14 @@ class GameScreen(
                     // RECOIL: Bounce bird up slightly to prevent "dead drop"
                     bird.velocity = 7f // A bit less than a full flap (10f)
 
-                    // Penalty?
-                    if (typingQueue.queue.isNotEmpty()) {
-                        progressionPoints = (progressionPoints - 1).coerceAtLeast(0)
-                        // Maybe play error sound too? Or crash is enough? Crash is enough.
+                    if (isPracticeMode) {
+                        // Text Mode Logic
+                        streak = 0
+                    } else {
+                        // Normal Mode Penalty
+                        if (typingQueue.queue.isNotEmpty()) {
+                            progressionPoints = (progressionPoints - 1).coerceAtLeast(0)
+                        }
                     }
                 }
             }
@@ -517,11 +572,18 @@ class GameScreen(
 
         if (bird.bounds.y <= 60) { // Screen height for ground is 60
             if (isPracticeMode) {
-                streak = 0
-                bird.y = 80f // Reset slightly above ground
-                bird.velocity = 0f
-                bird.flap()
-                soundManager.playFlap()
+                if (customSource is com.typingtoucan.systems.TextSnippetSource) {
+                     // Text Mode: Soft Reset (Type to Start) behavior
+                     soundManager.playCrash()
+                     softReset()
+                } else {
+                     // Practice Mode: Bounce
+                     streak = 0
+                     bird.y = 80f // Reset slightly above ground
+                     bird.velocity = 0f
+                     bird.flap()
+                     soundManager.playFlap()
+                }
             } else {
                 endGame()
             }
@@ -727,7 +789,13 @@ class GameScreen(
         }
 
         // 4. Underscore (If applicable)
-        if (pauseState == PauseState.NONE && typingQueue.queue.isNotEmpty()) {
+        // 4. Underscore (If applicable) OR Text Mode Display
+        // 4. Underscore (If applicable)
+        // 4. Underscore (If applicable)
+        // 4. Underscore (If applicable)
+        val src = customSource
+        // Only draw underscore if NOT in TextSnippet mode (Standard Mode)
+        if (pauseState == PauseState.NONE && typingQueue.queue.isNotEmpty() && src !is com.typingtoucan.systems.TextSnippetSource) {
             layout.setText(queueFont, cachedQueueStr)
             val textX = viewport.worldWidth / 2f - layout.width / 2
             val textY = viewport.worldHeight / 2f + viewport.worldHeight * 0.1f
@@ -747,6 +815,50 @@ class GameScreen(
                     else 55f
             shapeRenderer.rect(rectX, textY - yOffset, underscoreWidth, 5f)
         }
+        // Text Mode Underscore (Neon Pink)
+        else if (pauseState == PauseState.NONE && src is com.typingtoucan.systems.TextSnippetSource) {
+             val state = src.getDisplayState()
+             
+             // Replicate Animation Logic
+             val animT = if (state.lineIndex != lastLineIndex && lastLineIndex != -1) 0f else textAnimTimer
+             // Using approximate consistent timer or just textAnimTimer frame lag
+             val progressFactor = (textAnimTimer / 0.5f).coerceIn(0f, 1f)
+             val t = progressFactor * (2 - progressFactor)
+             val shiftY = -70f * (1f - t)
+             val startY = viewport.worldHeight / 2f + 50f + shiftY
+             
+             // Metrics (Raw font)
+             layout.setText(queueFont, state.currentLine)
+             val fullWidth = layout.width
+             val startX = viewport.worldWidth / 2f - fullWidth / 2f
+             
+             val typed = state.currentLine.take(state.localProgress)
+             layout.setText(queueFont, typed)
+             val typedWidth = layout.width
+             
+             // Cursor
+             val cursorX = startX + typedWidth
+             var charWidth = 20f
+             if (state.localProgress < state.currentLine.length) {
+                 val nextChar = state.currentLine[state.localProgress].toString()
+                 layout.setText(queueFont, nextChar)
+                 charWidth = layout.width
+             }
+             if (charWidth < 10f) charWidth = 15f // Min width for space/thin chars check
+             
+             // Neon Pink Glow (Hot Pink)
+             // Layered Rects for Glow?
+             val alpha = 0.6f + 0.4f * kotlin.math.sin(stateTime * 10f)
+             shapeRenderer.color = Color(1f, 0.41f, 0.71f, alpha) // HotPink
+             
+             val underlineY = startY - 60f // Below baseline (corrected from -10f which was too high)
+             
+             // Core
+             shapeRenderer.rect(cursorX, underlineY, charWidth, 4f)
+             // Glow (Wider, Fainter)
+             shapeRenderer.color = Color(1f, 0.41f, 0.71f, alpha * 0.5f)
+             shapeRenderer.rect(cursorX - 2f, underlineY - 2f, charWidth + 4f, 8f)
+        }
 
         shapeRenderer.end()
         Gdx.gl.glDisable(GL20.GL_BLEND)
@@ -754,7 +866,160 @@ class GameScreen(
         // --- BATCH PHASE 2: UI & TEXT ---
         game.batch.begin()
 
-        if (isPracticeMode) {
+        // --- SPECIAL TEXT MODE RENDERING ---
+        if (pauseState == PauseState.NONE && customSource is com.typingtoucan.systems.TextSnippetSource) {
+            val src = customSource
+            val state = src.getDisplayState()
+            val metadata = src.sourceMetadata
+
+            // Animation Logic
+            // We use a persistent var 'textAnimOffset' stored in GameScreen (assume accessible or use local hack)
+            // Wait, I cannot add a property to GameScreen via replace_file_content easily without context.
+            // I will use `stateTime` relative to a simpler check? No.
+            // I need a property. If I can't add one, checking lineIndex change is hard.
+            
+            // Wait, I can't easily add `private var lastTextLineIndex = -1` and `private var textAnimY = 0f` to the CLASS.
+            // But I can use the `isPracticeMode` block later? No.
+            // I have to add properties to the CLASS.
+            // I will do that in a separate chunk or tool call if needed.
+            // But I am in `replace_file_content`.
+            // I will assume I can't persist state easily without editing class body.
+            // Let's settle for INSTANT transition for now if I can't add state?
+            // "When a line is finished... scrolls up".
+            // I MUST add state variables.
+            
+            // Proceed assuming I will add them in `GameScreen` class body separately.
+            // Variables: textAnimTimer, textAnimDuration, lastLineIndex
+            
+            // Update Animation
+            if (state.lineIndex != lastLineIndex) {
+                 if (lastLineIndex != -1) {
+                     textAnimTimer = 0f // Start animation
+                 }
+                 lastLineIndex = state.lineIndex
+            }
+            
+            textAnimTimer += Gdx.graphics.deltaTime
+            val progressFactor = (textAnimTimer / 0.5f).coerceIn(0f, 1f)
+            // Interpolation: Pow2Out or similar
+            // We want to scroll UP.
+            // Visual mapping: 
+            // Normalized Position 0 = Target (Standard).
+            // Normalized Position 1 = Start (Previous Line Position).
+            // Actually simpler:
+            // currentY = lerp(-70f, 0f, progressFactor)
+            // prevY = lerp(0f, 70f, progressFactor)
+            // nextY = lerp(-140f, -70f, progressFactor)
+            
+            // Use smooth step
+            val t = progressFactor * (2 - progressFactor) // QuadOut
+            val shiftY = -70f * (1f - t) // Starts at -70, goes to 0
+            
+            // Metadata display removed per user request
+            // if (metadata.isNotEmpty()) ...
+
+            // Base Position
+            val startY = viewport.worldHeight / 2f + 50f
+            
+            // Enable markup for precise alignment
+            queueFont.data.markupEnabled = true
+
+            // Helper to draw centered line
+            fun drawLine(text: String, startXUnused: Float, y: Float, alpha: Float = 1f, isCurrent: Boolean = false, localProg: Int = 0) {
+                 if (text.isEmpty()) return
+                 
+                 var displayText = text
+                 var nextCharWidth = 20f // Default
+                 val fullWidth: Float
+                 
+                 if (isCurrent) {
+                     val typed = text.take(localProg)
+                     val remain = text.drop(localProg)
+                     
+                     // Calculate metrics on raw text first
+                     layout.setText(queueFont, text)
+                     fullWidth = layout.width
+                     
+                     layout.setText(queueFont, typed)
+                     val typedWidth = layout.width
+                     
+                     if (remain.isNotEmpty()) {
+                         val nextChar = remain.first().toString()
+                         layout.setText(queueFont, nextChar)
+                         nextCharWidth = layout.width
+                     }
+                     
+                     // Construct Markup String
+                     // Green: [#33FF33], White: [#FFFFFF]
+                     // Escape brackets in text? Assume passages are safe or simple replace
+                     val safeTyped = typed.replace("[", "[[")
+                     val safeRemain = remain.replace("[", "[[")
+                     
+                     displayText = "[#33FF33]${safeTyped}[]${safeRemain}"
+                     
+                     // Draw Underscore here (Batch based? Or defer to Shape?)
+                     // Drawing a sprite/texture for underscore is better for "Neon" glow in Batch?
+                     // Or use ShapeRenderer. But we are in Batch.
+                     // Batch must pause for Shape. Expensive.
+                     // Let's use a simple batch-draw logic for underscore if we have a white pixel?
+                     // We don't have a guaranteed 1x1 white pixel.
+                     // But we have `toucanPainTexture` or `ground`? No, risking UVs.
+                     // We can draw a text "_" in Pink?
+                     // Or switch phases.
+                     
+                     // Let's use the 'underscore' of the font itself?
+                     // Or just switch phases later? 
+                     // I will separate the Underscore to a ShapeRenderer logic block *after* batch end?
+                     // But the Text Mode block is *inside* Batch Phase 2.
+                     // Shape Phase is *before*.
+                     // I should calculate the Underscore pos here, store it, and draw in next frame? No.
+                     // Or I can just calculate it in Shape Phase (duplicate calc).
+                     // Duplicate calc is safest.
+                     
+                     // RENDER TEXT
+                     queueFont.color = Color(1f, 1f, 1f, alpha) // Base alpha
+                     layout.setText(queueFont, displayText) // Layout with markup
+                     val x = viewport.worldWidth / 2f - fullWidth / 2f // Use raw fullWidth for centering?
+                     // Wait, layout with markup might have different width if markup changes kern? Usually no.
+                     // Using 'fullWidth' from raw string is safer for centering consistency.
+                     queueFont.draw(game.batch, displayText, x, y)
+                     
+                 } else {
+                     queueFont.color = Color(1f, 1f, 1f, 0.4f * alpha)
+                     layout.setText(queueFont, text)
+                     val x = viewport.worldWidth / 2f - layout.width / 2f
+                     queueFont.draw(game.batch, text, x, y)
+                 }
+                 queueFont.color = Color.WHITE
+            }
+
+            // Draw Previous (Fading out and moving up)
+            // Pos: 0 -> +70 (Relative to StartY)
+            // But we apply shiftY to current.
+            // If shiftY goes -70 -> 0.
+            // PrevY should equal CurrentY + 70.
+            // So PrevY starts at 0, goes to +70. Correct.
+            if (state.prevLine.isNotEmpty() && progressFactor < 1f) {
+                drawLine(state.prevLine, 0f, startY + shiftY + 70f, alpha = 1f - progressFactor)
+            }
+            
+            // Draw Current
+            drawLine(state.currentLine, 0f, startY + shiftY, isCurrent = true, localProg = state.localProgress)
+            
+            // Draw Next
+            // Pos: -70 -> -70+shiftY? 
+            // Next starts at -140 (relative to target 0).
+            // Wait.
+            // Current starts at -70, goes to 0. (shiftY)
+            // Next starts at -140? No.
+            // Next is physically below Current. Always -70 offset.
+            // So NextY = CurrentY - 70.
+            if (state.nextLine.isNotEmpty()) {
+                drawLine(state.nextLine, 0f, startY + shiftY - 70f, alpha = 0.5f) // Always dim
+            }
+        }
+
+        if (isPracticeMode && customSource !is com.typingtoucan.systems.TextSnippetSource) {
             // Draw "Practice Mode"
             uiFont.draw(
                     game.batch,
@@ -892,7 +1157,7 @@ class GameScreen(
         }
 
         // Queue Text
-        if (pauseState == PauseState.NONE) {
+        if (pauseState == PauseState.NONE && customSource !is com.typingtoucan.systems.TextSnippetSource) {
             // Underscore already drawn in shapes
             layout.setText(queueFont, cachedQueueStr)
             val textX = viewport.worldWidth / 2f - layout.width / 2
@@ -934,6 +1199,11 @@ class GameScreen(
             if (!gameStarted) {
                 gameStarted = true
                 soundManager.playMusic()
+            }
+
+            // Fix for Text Mode: Ensure cursor advances even if updateWeights is false
+            if (isPracticeMode && customSource is com.typingtoucan.systems.TextSnippetSource) {
+                 customSource.onCharTyped(character)
             }
 
             // Update Cache

@@ -31,9 +31,19 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
     private val camera = OrthographicCamera().apply { setToOrtho(false, 800f, 600f) }
     private val viewport = com.badlogic.gdx.utils.viewport.ExtendViewport(800f, 600f, camera)
 
+    /** List of descriptions corresponding to main menu options. */
+    private val optionDescriptions = listOf(
+        "Play the classic progression mode, unlocking keys as you go.",
+        "Practice selected keys. No obstacles.",
+        "All keys unlocked. Type famous passages.",
+        "Configure volume and music settings.",
+        "View the creators of the game."
+    )
+    
     // Assets
     private lateinit var titleFont: BitmapFont
     private lateinit var menuFont: BitmapFont
+    private lateinit var captionFont: BitmapFont
     private val shapeRenderer = ShapeRenderer()
     private val layout = GlyphLayout()
 
@@ -44,12 +54,22 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
     private val difficultyOptions = listOf("Easy", "Normal", "Hard", "Insane", "Back")
     
     /** List of settings available in the options submenu. */
-    private val optionsMenuItems = listOf("Sound", "Music", "Music Track", "Back")
+    private val optionsMenuItems = listOf("Sound", "Music", "Music Track", "Reset High Score", "Back")
     
     /** Index of the currently selected menu item. */
     private var selectedIndex = 0
     private var isDifficultySelect = false
     private var isOptionsSelect = false
+    
+    // ... (skipping unchanged code) ...
+
+    /** ... */
+    // (Inside selectOption method, explicitly targeting the isOptionsSelect block)
+    // I need to be careful with replace_file_content context.
+    // I will replace the optionsMenuItems definition and the isOptionsSelect block in selectOption.
+    // Wait, I can't do two disjoint replacements easily if they are far apart unless I use multiple chunks.
+    // Let's use multiple chunks.
+
 
     init {
         // Initialize Fonts
@@ -69,6 +89,13 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
         menuParam.borderColor = Color.BLACK
         menuParam.borderWidth = 2f
         menuFont = generator.generateFont(menuParam)
+
+        val captionParam = FreeTypeFontGenerator.FreeTypeFontParameter()
+        captionParam.size = 20
+        captionParam.color = Color.LIGHT_GRAY
+        captionParam.borderColor = Color.BLACK
+        captionParam.borderWidth = 1f
+        captionFont = generator.generateFont(captionParam)
 
         generator.dispose()
     }
@@ -161,6 +188,13 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
         }
         // Reset color
         menuFont.color = Color.WHITE
+
+        // Draw Caption
+        if (selectedIndex in optionDescriptions.indices) {
+            val caption = optionDescriptions[selectedIndex]
+            layout.setText(captionFont, caption)
+            captionFont.draw(game.batch, caption, centerX - layout.width / 2, 60f)
+        }
     }
 
     private fun drawDifficultySelect() {
@@ -255,7 +289,49 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
                     else -> options
                 }
 
-        // Navigation
+        // --- Touch / Mouse Handling ---
+        if (Gdx.input.justTouched()) {
+            val touchX = Gdx.input.x.toFloat()
+            val touchY = Gdx.input.y.toFloat()
+            // Unproject to world coordinates
+            val worldPos = camera.unproject(com.badlogic.gdx.math.Vector3(touchX, touchY, 0f))
+
+            val centerX = viewport.worldWidth / 2f
+            val centerY = viewport.worldHeight / 2f + 50f
+            var startY = centerY
+            val gap = 50f
+
+            // Iterate through visible options to check click bounds
+            // We use the same layout loop logic as drawing to determine hitboxes
+            currentList.forEachIndexed { index, option ->
+                layout.setText(menuFont, option)
+                val w = layout.width
+                val h = layout.height
+                val x = centerX - w / 2
+                val y = startY - (index * gap)
+
+                // Define a generous hitbox around the text
+                // y is the baseline, so hitbox goes from y to y+h
+                // padding of 20px
+                if (worldPos.x >= x - 20 && worldPos.x <= x + w + 20 &&
+                    worldPos.y >= y - h - 10 && worldPos.y <= y + 20) {
+                    
+                    if (selectedIndex != index) {
+                        // First tap selects/highlights
+                        selectedIndex = index
+                        // Optional: play hover sound
+                    } else {
+                        // Second tap (or accurate tap) executes
+                        selectOption(index)
+                    }
+                    // If we want immediate execution on click regardless of previous selection:
+                    selectOption(index)
+                    return // Stop checking
+                }
+            }
+        }
+
+        // --- Keyboard Navigation ---
         if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
             selectedIndex--
             if (selectedIndex < 0) selectedIndex = currentList.size - 1
@@ -274,7 +350,7 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
         }
 
         // Back / Escape
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE) || Gdx.input.isKeyJustPressed(Input.Keys.BACK)) {
             if (isDifficultySelect) {
                 isDifficultySelect = false
                 selectedIndex = 0
@@ -310,6 +386,24 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
                 }
                 4 -> {
                     // Credits
+                    try {
+                        val file = Gdx.files.internal("assets/credits.txt")
+                        val text = file.readString()
+                        // Credits file is newline separated
+                        val lines = text.split("\n").filter { it.isNotBlank() }
+                        val items = lines.map { com.typingtoucan.systems.PassageItem(it.trim(), "") }
+                        val src = com.typingtoucan.systems.TextSnippetSource(items, sequential = true)
+
+                        game.screen = GameScreen(
+                                game,
+                                DifficultyManager.Difficulty.INSANE,
+                                isPracticeMode = true,
+                                customSource = src,
+                                isAutoplay = true
+                        )
+                    } catch (e: Exception) {
+                        Gdx.app.error("MenuScreen", "Failed to load credits", e)
+                    }
                 }
             }
         } else if (isDifficultySelect) {
@@ -338,7 +432,12 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
                                     com.typingtoucan.systems.SoundManager.MusicTrack.DARK_FOREST
                             else com.typingtoucan.systems.SoundManager.MusicTrack.WHAT
                 }
-                3 -> { // Back
+                3 -> {
+                    // Reset High Score
+                    SaveManager.resetHighScore()
+                    game.soundManager.playLevelUpPractice() // Feedback sound
+                }
+                4 -> { // Back
                     isOptionsSelect = false
                     selectedIndex = 3 // Return to "Options"
                 }
@@ -360,6 +459,7 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
     override fun dispose() {
         titleFont.dispose()
         menuFont.dispose()
+        captionFont.dispose()
         shapeRenderer.dispose()
     }
 }
