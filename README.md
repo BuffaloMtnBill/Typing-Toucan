@@ -1,5 +1,5 @@
 # Typing Toucan
-A jungle themed typing game with a typing mechanic, built using LibGDX and coded with Kotlin.
+A jungle themed typing game with a flying mechanic, built using LibGDX and coded with Kotlin.
 
 ## Features
 - Learning mode is progressive, learn to type by unlocking letters one at a time across the keyboard.
