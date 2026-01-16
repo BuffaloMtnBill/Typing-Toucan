@@ -35,9 +35,9 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
     private val optionDescriptions = listOf(
         "Play the classic progression mode, unlocking keys as you go.",
         "Practice selected keys. No obstacles.",
-        "All keys unlocked. Type famous passages.",
+        "All keys unlocked. Type jungle facts.",
         "Configure volume and music settings.",
-        "View the creators of the game."
+        "View the credits."
     )
     
     // Assets
@@ -48,10 +48,10 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
     private val layout = GlyphLayout()
 
     /** List of main menu options. */
-    private val options = listOf("Start Game", "Custom Mode", "Text Mode", "Options", "Credits")
+    private val options = listOf("Learning Mode", "Practice Mode", "Text Mode", "Options", "Credits")
     
     /** List of difficulty levels available for selection. */
-    private val difficultyOptions = listOf("Easy", "Normal", "Hard", "Insane", "Back")
+    private val difficultyOptions = listOf("Easy", "Normal", "Hard", "Insane", "", "Change Start Level")
     
     /** List of settings available in the options submenu. */
     private val optionsMenuItems = listOf("Sound", "Music", "Music Track", "Reset High Score", "Back")
@@ -60,6 +60,8 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
     private var selectedIndex = 0
     private var isDifficultySelect = false
     private var isOptionsSelect = false
+    private var startLevel = 1
+    private val progressionString = "asdfjkl;ghqweruioptyzxcvm,./bn1234567890-!@#$%()"
     
     // ... (skipping unchanged code) ...
 
@@ -145,9 +147,22 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
         titleFont.draw(game.batch, "TYPING TOUCAN", centerX - layout.width / 2, topY)
 
         // High Score
-        val scoreText = "High Score: ${SaveManager.getHighScore()}"
-        layout.setText(menuFont, scoreText)
-        menuFont.draw(game.batch, scoreText, centerX - layout.width / 2, topY - 70f)
+        // High Score
+        // Show High Score based on selected option
+        var scoreText = ""
+        if (!isDifficultySelect && !isOptionsSelect) {
+            scoreText = when (selectedIndex) {
+                0 -> "Highest Level: ${SaveManager.getNormalLevel()}"
+                1 -> "Best Streak: ${SaveManager.getCustomStreak()}"
+                2 -> "Best Streak: ${SaveManager.getTextStreak()}"
+                else -> ""
+            }
+        }
+
+        if (scoreText.isNotEmpty()) {
+            layout.setText(menuFont, scoreText)
+            menuFont.draw(game.batch, scoreText, centerX - layout.width / 2, topY - 70f)
+        }
 
         if (isDifficultySelect) {
             drawDifficultySelect()
@@ -208,14 +223,22 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
         menuFont.draw(game.batch, prompt, centerX - layout.width / 2, centerY + 100f)
 
         difficultyOptions.forEachIndexed { index, option ->
+            if (option.isEmpty()) return@forEachIndexed // Skip blank lines
+            
             val isSelected = index == selectedIndex
             menuFont.color = if (isSelected) Color.CYAN else Color.WHITE
 
-            layout.setText(menuFont, option)
+            var displayOption = option
+            if (index == 5) { // Change Start Level
+                 val char = if (startLevel <= progressionString.length) progressionString[startLevel - 1] else '?'
+                 displayOption = "< Change Start Level: $startLevel - $char >"
+            }
+
+            layout.setText(menuFont, displayOption)
             val x = centerX - layout.width / 2
             val y = startY - (index * gap)
 
-            menuFont.draw(game.batch, option, x, y)
+            menuFont.draw(game.batch, displayOption, x, y) // Use displayOption
 
             if (isSelected) {
                 // Draw Red Underline
@@ -316,15 +339,21 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
                 if (worldPos.x >= x - 20 && worldPos.x <= x + w + 20 &&
                     worldPos.y >= y - h - 10 && worldPos.y <= y + 20) {
                     
-                    if (selectedIndex != index) {
-                        // First tap selects/highlights
-                        selectedIndex = index
-                        // Optional: play hover sound
-                    } else {
-                        // Second tap (or accurate tap) executes
-                        selectOption(index)
+                    if (isDifficultySelect && index == 5) {
+                         // Touch Zones for Arrows
+                         val rx = worldPos.x - x
+                         if (rx < w * 0.25f) { // Left 25%
+                             startLevel = (startLevel - 1).coerceAtLeast(1)
+                         } else if (rx > w * 0.75f) { // Right 25%
+                             startLevel = (startLevel + 1).coerceAtMost(progressionString.length)
+                         }
+                         selectedIndex = index
+                         // Optional: Add simple debounce or wait for release if needed, but simple tap works for now
+                         return
                     }
-                    // If we want immediate execution on click regardless of previous selection:
+
+                    selectedIndex = index
+                    // Single tap execute (unless it's the slider which is handled above)
                     selectOption(index)
                     return // Stop checking
                 }
@@ -335,9 +364,15 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
         if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
             selectedIndex--
             if (selectedIndex < 0) selectedIndex = currentList.size - 1
+            // Skip empty items (separators)
+            if (currentList[selectedIndex].isEmpty()) selectedIndex--
+            if (selectedIndex < 0) selectedIndex = currentList.size - 1
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
             selectedIndex++
+            if (selectedIndex >= currentList.size) selectedIndex = 0
+            // Skip empty items (separators)
+            if (currentList[selectedIndex].isEmpty()) selectedIndex++
             if (selectedIndex >= currentList.size) selectedIndex = 0
         }
 
@@ -357,34 +392,46 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
             } else if (isOptionsSelect) {
                 isOptionsSelect = false
                 selectedIndex = 0
+            } else {
+                Gdx.app.exit()
             }
+        }
+
+        // Left / Right for Slider Options
+        if (isDifficultySelect && selectedIndex == 5) {
+             if (Gdx.input.isKeyJustPressed(Input.Keys.RIGHT)) {
+                 startLevel = (startLevel + 1).coerceAtMost(progressionString.length)
+             }
+             if (Gdx.input.isKeyJustPressed(Input.Keys.LEFT)) {
+                 startLevel = (startLevel - 1).coerceAtLeast(1)
+             }
         }
     }
 
     private fun selectOption(index: Int) {
         if (!isDifficultySelect && !isOptionsSelect) {
             // Main Menu Selection
-            // Main Menu Selection
-            when (index) {
-                0 -> {
-                    // Start Game -> Go to Difficulty Select
+            val option = options[index]
+            when (option) {
+                "Learning Mode" -> {
+                    // Learning Mode
                     isDifficultySelect = true
-                    selectedIndex = 1
+                    selectedIndex = 1 // Default to Normal
                 }
-                1 -> {
-                    // Custom Mode
+                "Practice Mode" -> {
+                    // Practice Mode
                     game.screen = CustomSetupScreen(game)
                 }
-                2 -> {
+                "Text Mode" -> {
                     // Text Mode
                     game.screen = TextSetupScreen(game)
                 }
-                3 -> {
+                "Options" -> {
                     // Options
                     isOptionsSelect = true
                     selectedIndex = 0
                 }
-                4 -> {
+                "Credits" -> {
                     // Credits
                     try {
                         val file = Gdx.files.internal("assets/credits.txt")
@@ -414,11 +461,8 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
                 1 -> startGame(DifficultyManager.Difficulty.NORMAL)
                 2 -> startGame(DifficultyManager.Difficulty.HARD)
                 3 -> startGame(DifficultyManager.Difficulty.INSANE)
-                4 -> {
-                    // Back
-                    isDifficultySelect = false
-                    selectedIndex = 0
-                }
+                4 -> { /* Separator - Should be skipped */ }
+                5 -> { /* Change Start Level (Left/Right) */ }
             }
         } else if (isOptionsSelect) {
             val sm = game.soundManager
@@ -447,7 +491,7 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
     }
 
     private fun startGame(difficulty: DifficultyManager.Difficulty) {
-        game.screen = GameScreen(game, difficulty)
+        game.screen = GameScreen(game, difficulty, startLevel = startLevel)
     }
 
     override fun resize(width: Int, height: Int) {

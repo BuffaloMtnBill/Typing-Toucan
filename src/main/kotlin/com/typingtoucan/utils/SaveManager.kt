@@ -10,31 +10,48 @@ import com.badlogic.gdx.Preferences
  */
 object SaveManager {
     private const val PREFS_NAME = "TappyBirdPrefs"
-    private const val HIGH_SCORE_KEY = "highScore"
-
+    private const val HIGH_SCORE_KEY = "highScore" // Legacy
     private val prefs: Preferences by lazy { Gdx.app.getPreferences(PREFS_NAME) }
 
-    /**
-     * Updates the high score if the provided score is higher than the stored one.
-     *
-     * @param score The new score to check.
-     */
-    fun saveHighScore(score: Int) {
-        val current = getHighScore()
-        if (score > current) {
-            prefs.putInteger(HIGH_SCORE_KEY, score)
+    private const val KEY_NORMAL_LEVEL = "highScore_Level"
+    private const val KEY_CUSTOM_STREAK = "highScore_CustomStreak"
+    private const val KEY_TEXT_STREAK = "highScore_TextStreak"
+
+    // Normal Mode (Level)
+    fun saveNormalLevel(level: Int) {
+        val current = getNormalLevel()
+        if (level > current) {
+            prefs.putInteger(KEY_NORMAL_LEVEL, level)
             prefs.flush()
         }
     }
+    fun getNormalLevel(): Int = prefs.getInteger(KEY_NORMAL_LEVEL, 1)
 
-    /** Returns the current high score. */
-    fun getHighScore(): Int {
-        return prefs.getInteger(HIGH_SCORE_KEY, 0)
+    // Custom Mode (Streak)
+    fun saveCustomStreak(streak: Int) {
+        val current = getCustomStreak()
+        if (streak > current) {
+            prefs.putInteger(KEY_CUSTOM_STREAK, streak)
+            prefs.flush()
+        }
     }
+    fun getCustomStreak(): Int = prefs.getInteger(KEY_CUSTOM_STREAK, 0)
 
-    /** Resets the high score to 0. */
+    // Text Mode (Streak)
+    fun saveTextStreak(streak: Int) {
+        val current = getTextStreak()
+        if (streak > current) {
+            prefs.putInteger(KEY_TEXT_STREAK, streak)
+            prefs.flush()
+        }
+    }
+    fun getTextStreak(): Int = prefs.getInteger(KEY_TEXT_STREAK, 0)
+
     fun resetHighScore() {
         prefs.putInteger(HIGH_SCORE_KEY, 0)
+        prefs.putInteger(KEY_NORMAL_LEVEL, 1)
+        prefs.putInteger(KEY_CUSTOM_STREAK, 0)
+        prefs.putInteger(KEY_TEXT_STREAK, 0)
         prefs.flush()
     }
 

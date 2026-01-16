@@ -34,7 +34,8 @@ class GameScreen(
         var difficulty: DifficultyManager.Difficulty = DifficultyManager.Difficulty.NORMAL,
         private val isPracticeMode: Boolean = false,
         private val customSource: com.typingtoucan.systems.TypingSource? = null,
-        private val isAutoplay: Boolean = false
+        private val isAutoplay: Boolean = false,
+        private val startLevel: Int = 1
 ) : Screen, InputProcessor {
     private val camera = OrthographicCamera().apply { setToOrtho(false, 800f, 600f) }
     private val viewport = com.badlogic.gdx.utils.viewport.ExtendViewport(800f, 600f, camera)
@@ -56,10 +57,8 @@ class GameScreen(
     // Ground Animation
     private lateinit var groundAnimTextures: Array<Texture>
     private lateinit var groundAnimation: Animation<TextureRegion>
-    private var groundState = GroundState.IDLE
-    private var groundAnimTimer = 0f
-    private var timeUntilNextAnim = 5f // Start with 5s delay
-    private var groundStateTime = 0f
+    private var activeGroundIndex = 0
+    private var groundTimer = 0f
 
     private enum class GroundState {
         IDLE,
@@ -99,7 +98,7 @@ class GameScreen(
             if (customSource is com.typingtoucan.systems.CustomPoolSource) {
                 listOf("Resume", "Difficulty", "Audio", "Letter Selection Menu", "Main Menu")
             } else if (customSource is com.typingtoucan.systems.TextSnippetSource) {
-                listOf("Resume", "Difficulty", "Audio", "Select Text", "Main Menu")
+                listOf("Resume", "Difficulty", "Audio", "Main Menu")
             } else {
                 listOf("Resume", "Difficulty", "Capitals", "Audio", "Main Menu")
             }
@@ -120,7 +119,7 @@ class GameScreen(
     private var milestoneTimer = 0f // Timer for milestone "pulse" effect
     private var textAnimTimer = 1f
     private var lastLineIndex = -1
-    private var level = 1
+    private var level = startLevel
     private var totalNecksSpawned = 0
     private var autoplayTimer = 0f
     private var aiFlapCooldown = 0f
@@ -138,6 +137,9 @@ class GameScreen(
     // Practice Mode Stats
     private var streak = 0
     private var maxStreak = 0
+    
+    // High Score Display
+    private var topHighScore = 0
 
     // Monkey Decoration
     private var monkeyX = 500f
@@ -218,7 +220,7 @@ class GameScreen(
         // Let's just cycle anim1, anim2.
         frames.add(TextureRegion(groundAnimTextures[0]))
         frames.add(TextureRegion(groundAnimTextures[1]))
-        groundAnimation = Animation(0.1f, frames, Animation.PlayMode.LOOP)
+        groundAnimation = Animation(0.8f, frames, Animation.PlayMode.LOOP)
 
         monkeyTextures =
                 listOf(
@@ -291,6 +293,25 @@ class GameScreen(
 
         // Sync Capitals Preference
         typingQueue.setCapitalsEnabled(com.typingtoucan.utils.SaveManager.loadCapitalsEnabled())
+
+        // Fast Forward Level (Learning Mode)
+        if (startLevel > 1) {
+            repeat(startLevel - 1) {
+                typingQueue.expandPool()
+            }
+        }
+        
+        // Initialize High Scores
+        if (isPracticeMode) {
+            if (customSource is com.typingtoucan.systems.CustomPoolSource) {
+                 topHighScore = com.typingtoucan.utils.SaveManager.getCustomStreak()
+            } else {
+                 topHighScore = com.typingtoucan.utils.SaveManager.getTextStreak()
+            }
+            maxStreak = topHighScore // Init session max to global max
+        } else {
+            topHighScore = com.typingtoucan.utils.SaveManager.getNormalLevel()
+        }
     }
 
     private fun updateQueueString() {
@@ -316,7 +337,11 @@ class GameScreen(
             }
 
             if (!isPracticeMode) {
-                SaveManager.saveHighScore(score)
+                 // Calculate effective level (penalize skipped levels)
+                 val effectiveLevel = level - (startLevel - 1)
+                 if (effectiveLevel > 0) {
+                     com.typingtoucan.utils.SaveManager.saveNormalLevel(effectiveLevel)
+                 }
             }
         } catch (e: Exception) {
             Gdx.app.error("GameScreen", "Error during endGame", e)
@@ -371,6 +396,9 @@ class GameScreen(
                 bird.velocity = 0f
             } else {
                 handlePauseMenuInput()
+                if (Gdx.input.justTouched()) {
+                    handlePauseMenuTouch()
+                }
             }
         }
 
@@ -425,23 +453,20 @@ class GameScreen(
             if (hurtTimer < 0) hurtTimer = 0f
         }
 
-        // Ground Animation Logic
-        if (groundState == GroundState.IDLE) {
-            timeUntilNextAnim -= delta
-            if (timeUntilNextAnim <= 0) {
-                groundState = GroundState.ANIMATING
-                // Random duration 0.5 - 1.5s
-                groundAnimTimer = 0.5f + Math.random().toFloat() * 1.0f
-            }
-        } else {
-            groundAnimTimer -= delta
-            groundStateTime += delta
-            if (groundAnimTimer <= 0) {
-                groundState = GroundState.IDLE
-                groundStateTime = 0f
-                // Random next interval 3s - 8s
-                timeUntilNextAnim = 3f + Math.random().toFloat() * 5f
-            }
+        // Ground Animation Logic (Random Frame every 1-3s)
+        groundTimer -= delta
+        if (groundTimer <= 0) {
+             // Pick random duration 1-3s
+             groundTimer = 1f + Math.random().toFloat() * 2f
+             
+             // Pick different frame
+             // 0 = Base, 1 = Anim1, 2 = Anim2
+             val oldIndex = activeGroundIndex
+             var newIndex = oldIndex
+             while (newIndex == oldIndex) {
+                 newIndex = (0..2).random()
+             }
+             activeGroundIndex = newIndex
         }
         if (flashTimer > 0) {
             flashTimer -= delta
@@ -513,37 +538,46 @@ class GameScreen(
                 soundManager.playScore()
                 progressionPoints++
                 if (progressionPoints >= 5) {
-                    // Check for Victory
+                    var didLevelUp = false
+                    
                     if (typingQueue.isFullyUnlocked()) {
-                        // VICTORY!
-                        pauseState = PauseState.VICTORY
-                        soundManager.playLevelUp() // Or victory sound if we had one
-                        // Stop movement handled by pauseState check in update/keyTyped
+                        // Max Level reached: Continue leveling endlessly
+                        didLevelUp = true
+                        justUnlockedChar = "MAX"
                     } else {
                         val unlockedChars = typingQueue.expandPool()
                         if (unlockedChars.isNotEmpty()) {
-                            level++
-                            cachedLevelStr = level.toString() // Cache Update
-                            flashTimer = 1.0f // Flash green for 1.0 second
-
-                            // Handle display text
-                            if (unlockedChars.size > 1) {
-                                // Bulk unlock (e.g. Capitals)
-                                val first = unlockedChars.first()
-                                val last = unlockedChars.last()
-                                justUnlockedChar = "$first-$last"
-                            } else {
-                                // Single unlock
-                                justUnlockedChar = unlockedChars.first().toString()
-                            }
-
-                            soundManager.playLevelUp()
-
-                            // Check for milestone
-                            if (level % 5 == 0) {
-                                milestoneTimer = 2.0f // Pulse for 2 seconds (starts loop)
-                            }
+                             didLevelUp = true
+                             // Handle display text
+                             if (unlockedChars.size > 1) {
+                                 // Bulk unlock (e.g. Capitals)
+                                 val first = unlockedChars.first()
+                                 val last = unlockedChars.last()
+                                 justUnlockedChar = "$first-$last"
+                             } else {
+                                 // Single unlock
+                                 justUnlockedChar = unlockedChars.first().toString()
+                             }
+                             
+                             // Check for milestone (only during progression)
+                             if (level % 5 == 0) {
+                                 milestoneTimer = 2.0f // Pulse for 2 seconds (starts loop)
+                             }
                         }
+                    }
+
+                    if (didLevelUp) {
+                         level++
+                         if (!isPracticeMode) {
+                             val effectiveLevel = level - (startLevel - 1)
+                             if (effectiveLevel > topHighScore) {
+                                  topHighScore = effectiveLevel
+                                  com.typingtoucan.utils.SaveManager.saveNormalLevel(effectiveLevel)
+                             }
+                         }
+                         cachedLevelStr = level.toString() // Cache Update
+                         flashTimer = 1.0f // Flash green for 1.0 second
+                         soundManager.playLevelUp()
                     }
                     progressionPoints = 0
                 }
@@ -701,10 +735,10 @@ class GameScreen(
         val numGroundTiles = kotlin.math.ceil(viewport.worldWidth / groundW).toInt() + 1
 
         val textureToDraw =
-                if (groundState == GroundState.ANIMATING) {
-                    groundAnimation.getKeyFrame(groundStateTime).texture
-                } else {
-                    groundTexture
+                when (activeGroundIndex) {
+                    0 -> groundTexture
+                    1 -> groundAnimTextures[0]
+                    else -> groundAnimTextures[1]
                 }
 
         for (i in 0 until numGroundTiles) {
@@ -1048,75 +1082,80 @@ class GameScreen(
         }
 
         // Level / Streak Indicator
-        if (isPracticeMode && !isAutoplay) {
-            val levelCommonCenter = viewport.worldWidth - 60f
+        // HUD is hidden in Autoplay (Credits)
+        if (!isAutoplay) {
+             val levelCommonCenter = viewport.worldWidth - 60f
+             
+             if (isPracticeMode) {
+                 // --- PRACTICE/TEXT MODE ---
+                 // Top: BEST STREAK
+                 val maxLabel = "BEST STREAK"
+                 layout.setText(smallFont, maxLabel)
+                 smallFont.draw(game.batch, maxLabel, levelCommonCenter - layout.width / 2, viewport.worldHeight - 30f)
+                 
+                 val maxVal = topHighScore.toString()
+                 // Use queueFont scaled down
+                 queueFont.data.setScale(0.5f)
+                 layout.setText(queueFont, maxVal)
+                 queueFont.draw(game.batch, maxVal, levelCommonCenter - layout.width / 2, viewport.worldHeight - 60f)
+                 queueFont.data.setScale(1.0f)
 
-            // Draw Max Streak (Larger)
-            val maxLabel = "MAX STREAK"
-            layout.setText(smallFont, maxLabel)
-            smallFont.draw(game.batch, maxLabel, levelCommonCenter - layout.width / 2, 170f)
+                 // Bottom: CURRENT STREAK
+                 val streakLabel = "STREAK"
+                 layout.setText(smallFont, streakLabel)
+                 smallFont.draw(game.batch, streakLabel, levelCommonCenter - layout.width / 2, 90f)
 
-            // User requested reduction by 50%. queueFont is 60. 0.5 scale = 30.
-            val maxVal = maxStreak.toString()
-            queueFont.data.setScale(0.5f)
-            layout.setText(queueFont, maxVal)
-            queueFont.draw(
-                    game.batch,
-                    maxVal,
-                    levelCommonCenter - layout.width / 2,
-                    135f
-            ) // Adjusted Y slightly for smaller font
-            queueFont.data.setScale(1.0f) // Reset
+                 // Pulse Effect for Streak Value
+                 if (milestoneTimer > 0) {
+                     val pulse = kotlin.math.abs(kotlin.math.sin(stateTime * 5f))
+                     val scale = 1.0f + 0.4f * pulse
+                     queueFont.data.setScale(scale)
+                     val colorPulse = (kotlin.math.sin(stateTime * 5f) + 1f) / 2f
+                     tempColor.set(Color.GOLD).lerp(Color.CYAN, colorPulse)
+                     queueFont.color = tempColor
+                 }
 
-            // Draw Current Streak
-            val streakLabel = "STREAK"
-            layout.setText(smallFont, streakLabel)
-            smallFont.draw(game.batch, streakLabel, levelCommonCenter - layout.width / 2, 90f)
+                 val streakVal = streak.toString()
+                 layout.setText(queueFont, streakVal)
+                 queueFont.draw(game.batch, streakVal, levelCommonCenter - layout.width / 2, 60f)
+                 
+                 queueFont.data.setScale(1.0f)
+                 queueFont.color = Color.WHITE
 
-            // Pulse Effect for Streak Value (using milestoneTimer)
-            if (milestoneTimer > 0) {
-                val pulse = kotlin.math.abs(kotlin.math.sin(stateTime * 5f))
-                val scale = 1.0f + 0.4f * pulse
-                queueFont.data.setScale(scale)
-                val colorPulse = (kotlin.math.sin(stateTime * 5f) + 1f) / 2f
+             } else {
+                 // --- NORMAL MODE ---
+                 // Top: BEST LEVEL
+                 val bestLabel = "BEST LEVEL"
+                 layout.setText(smallFont, bestLabel)
+                 smallFont.draw(game.batch, bestLabel, levelCommonCenter - layout.width / 2, viewport.worldHeight - 30f)
+                 
+                 val bestVal = topHighScore.toString()
+                 queueFont.data.setScale(0.5f)
+                 layout.setText(queueFont, bestVal)
+                 queueFont.draw(game.batch, bestVal, levelCommonCenter - layout.width / 2, viewport.worldHeight - 60f)
+                 queueFont.data.setScale(1.0f)
 
-                // Avoid allocation
+                 // Bottom: CURRENT LEVEL
+                 val levelLabel = "LEVEL"
+                 layout.setText(smallFont, levelLabel)
+                 smallFont.draw(game.batch, levelLabel, levelCommonCenter - layout.width / 2, 100f)
+
+                 // Level Value
+                 if (milestoneTimer > 0) {
+                     val pulse = kotlin.math.abs(kotlin.math.sin(stateTime * 5f))
+                     val scale = 1.0f + 0.4f * pulse
+                     queueFont.data.setScale(scale)
+                     val colorPulse = (kotlin.math.sin(stateTime * 5f) + 1f) / 2f
+                     // Avoid allocation
+
                 tempColor.set(Color.GOLD).lerp(Color.CYAN, colorPulse)
                 queueFont.color = tempColor
             }
 
-            val streakVal = streak.toString()
-            layout.setText(queueFont, streakVal)
-            queueFont.draw(game.batch, streakVal, levelCommonCenter - layout.width / 2, 60f)
-
-            // Reset Font State
-            queueFont.data.setScale(1.0f)
-            queueFont.color = Color.WHITE
-        } else if (!isPracticeMode) {
-            val levelLabel = "LEVEL"
-            layout.setText(smallFont, levelLabel)
-            val levelLabelWidth = layout.width
-            val levelCommonCenter = viewport.worldWidth - 60f
-
-            smallFont.draw(game.batch, levelLabel, levelCommonCenter - levelLabelWidth / 2, 100f)
-
-            // Level Value
-            if (milestoneTimer > 0) {
-                val pulse = kotlin.math.abs(kotlin.math.sin(stateTime * 5f))
-                val scale = 1.0f + 0.4f * pulse
-                queueFont.data.setScale(scale)
-                val colorPulse = (kotlin.math.sin(stateTime * 5f) + 1f) / 2f
-
-                // Avoid allocation
-                tempColor.set(Color.GOLD).lerp(Color.CYAN, colorPulse)
-                queueFont.color = tempColor
-            }
-
-            if (cachedLevelStr != null) {
-                layout.setText(queueFont, cachedLevelStr) // Use cached
-                val valWidth = layout.width
-                queueFont.draw(game.batch, cachedLevelStr, levelCommonCenter - valWidth / 2, 70f)
-            }
+            layout.setText(queueFont, cachedLevelStr) // Use cached
+            val valWidth = layout.width
+            queueFont.draw(game.batch, cachedLevelStr, levelCommonCenter - valWidth / 2, 70f)
+        }
         }
         // RESET FONT STATE
         queueFont.data.setScale(1.0f)
@@ -1232,6 +1271,14 @@ class GameScreen(
 
             if (isPracticeMode) {
                 streak++
+                if (!isAutoplay && streak > topHighScore) {
+                    topHighScore = streak
+                    if (customSource is com.typingtoucan.systems.CustomPoolSource) {
+                        com.typingtoucan.utils.SaveManager.saveCustomStreak(streak)
+                    } else {
+                        com.typingtoucan.utils.SaveManager.saveTextStreak(streak)
+                    }
+                }
                 if (streak > maxStreak) maxStreak = streak
 
                 // Flash every 10 streaks
@@ -1295,7 +1342,7 @@ class GameScreen(
     }
 
     private fun drawPauseMainMenu() {
-        var startY = viewport.worldHeight / 2f
+        var startY = viewport.worldHeight / 2f + 100f
         val gap = 50f
         val centerX = viewport.worldWidth / 2f
 
@@ -1319,7 +1366,7 @@ class GameScreen(
     }
 
     private fun drawAudioMenu() {
-        var startY = viewport.worldHeight / 2f
+        var startY = viewport.worldHeight / 2f + 100f
         val gap = 50f
         val centerX = viewport.worldWidth / 2f
 
@@ -1425,5 +1472,105 @@ class GameScreen(
                 }
             }
         }
+    }
+    
+    private fun handlePauseMenuTouch() {
+         val touchX = Gdx.input.x.toFloat()
+         val touchY = Gdx.input.y.toFloat()
+         val worldPos = camera.unproject(com.badlogic.gdx.math.Vector3(touchX, touchY, 0f))
+         
+         val centerX = viewport.worldWidth / 2f
+         var startY = viewport.worldHeight / 2f + 100f
+         val gap = 50f
+         
+         val currentList =
+                 if (pauseState == PauseState.MAIN) mainMenuItems else audioMenuItems
+                 
+         currentList.forEachIndexed { index, item ->
+             val label =
+                     when (item) {
+                         "Difficulty" -> "Difficulty: ${difficulty.name}"
+                         "Capitals" ->
+                                 "Capitals: ${if (com.typingtoucan.utils.SaveManager.loadCapitalsEnabled()) "ON" else "OFF"}"
+                         "Sound" -> "Sound: ${if (game.soundManager.soundEnabled) "ON" else "OFF"}"
+                         "Music" -> "Music: ${if (game.soundManager.musicEnabled) "ON" else "OFF"}"
+                         "Music Track" -> { // Approximate length check or just make hitbox wide
+                             "Music Track: Dark Forest" 
+                         }
+                         else -> item
+                     }
+             
+             layout.setText(uiFont, label) // Note: Dynamic labels might vary slightly in width but this is close enough for touch
+             val w = layout.width + 40f // Padding
+             val h = layout.height + 40f
+             val x = centerX - w / 2
+             val y = startY - (index * gap) - 20f // Adjust for baseline
+             
+             if (worldPos.x >= x && worldPos.x <= x + w &&
+                 worldPos.y >= y && worldPos.y <= y + h) {
+                     menuSelectedIndex = index
+                     // Simulate Enter Press logic by calling the input handler logic again or refactoring.
+                     // Since input handler uses Gdx.input.isKeyJustPressed, we can't easily fake it.
+                     // We should extract the "Execute" logic.
+                     executePauseMenuAction()
+             }
+         }
+    }
+    
+    private fun executePauseMenuAction() {
+            if (pauseState == PauseState.MAIN) {
+                val selectedItem = mainMenuItems[menuSelectedIndex]
+                if (selectedItem == "Resume") {
+                    pauseState = PauseState.NONE
+                } else if (selectedItem == "Difficulty") {
+                    difficulty =
+                            when (difficulty) {
+                                DifficultyManager.Difficulty.EASY ->
+                                        DifficultyManager.Difficulty.NORMAL
+                                DifficultyManager.Difficulty.NORMAL ->
+                                        DifficultyManager.Difficulty.HARD
+                                DifficultyManager.Difficulty.HARD ->
+                                        DifficultyManager.Difficulty.INSANE
+                                DifficultyManager.Difficulty.INSANE ->
+                                        DifficultyManager.Difficulty.EASY
+                            }
+                    diffManager = DifficultyManager(difficulty)
+                    bird.gravity = diffManager.gravity
+                    bird.flapStrength = diffManager.flapStrength
+                    nextNeckInterval = diffManager.neckInterval
+                } else if (selectedItem == "Capitals") {
+                    val current = com.typingtoucan.utils.SaveManager.loadCapitalsEnabled()
+                    val newState = !current
+                    com.typingtoucan.utils.SaveManager.saveCapitalsEnabled(newState)
+                    typingQueue.setCapitalsEnabled(newState)
+                } else if (selectedItem == "Letter Selection Menu") {
+                    game.screen = CustomSetupScreen(game)
+                } else if (selectedItem == "Audio") {
+                    pauseState = PauseState.AUDIO
+                    menuSelectedIndex = 0
+                } else if (selectedItem == "Main Menu") {
+                    game.soundManager.stopMusic()
+                    game.screen = MenuScreen(game)
+                }
+            } else if (pauseState == PauseState.AUDIO) {
+                val sm = game.soundManager
+                when (menuSelectedIndex) {
+                    0 -> sm.soundEnabled = !sm.soundEnabled // Toggle Sound
+                    1 -> sm.musicEnabled = !sm.musicEnabled // Toggle Music
+                    2 -> { // Toggle Track
+                        sm.currentTrack =
+                                if (sm.currentTrack ==
+                                                com.typingtoucan.systems.SoundManager.MusicTrack
+                                                        .WHAT
+                                )
+                                        com.typingtoucan.systems.SoundManager.MusicTrack.DARK_FOREST
+                                else com.typingtoucan.systems.SoundManager.MusicTrack.WHAT
+                    }
+                    3 -> { // Back
+                        pauseState = PauseState.MAIN
+                        menuSelectedIndex = 3
+                    }
+                }
+            }
     }
 }
