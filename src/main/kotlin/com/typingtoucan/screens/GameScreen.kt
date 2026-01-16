@@ -381,7 +381,7 @@ class GameScreen(
         if (isAutoplay) {
              autoplayTimer -= delta
              if (autoplayTimer <= 0) {
-                  autoplayTimer = 0.06f // Approx 16 chars/sec
+                  autoplayTimer = 0.08f // Approx 12.5 chars/sec (25% slower)
                   if (typingQueue.queue.isNotEmpty()) {
                       keyTyped(typingQueue.queue.first())
                   }
@@ -1048,7 +1048,7 @@ class GameScreen(
         }
 
         // Level / Streak Indicator
-        if (isPracticeMode) {
+        if (isPracticeMode && !isAutoplay) {
             val levelCommonCenter = viewport.worldWidth - 60f
 
             // Draw Max Streak (Larger)
@@ -1092,7 +1092,7 @@ class GameScreen(
             // Reset Font State
             queueFont.data.setScale(1.0f)
             queueFont.color = Color.WHITE
-        } else {
+        } else if (!isPracticeMode) {
             val levelLabel = "LEVEL"
             layout.setText(smallFont, levelLabel)
             val levelLabelWidth = layout.width
@@ -1235,7 +1235,7 @@ class GameScreen(
                 if (streak > maxStreak) maxStreak = streak
 
                 // Flash every 10 streaks
-                if (streak % 10 == 0) {
+                if (streak % 10 == 0 && !isAutoplay) {
                     soundManager.playLevelUpPractice()
                     milestoneTimer = 2.0f // Pulse for 2 seconds
                 }

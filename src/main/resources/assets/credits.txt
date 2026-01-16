@@ -1,0 +1,17 @@
+Credits
+
+Game by BuffaloMtnBill
+
+Music by HoliznaCC0
+Who in no way endorses this project but makes great music.
+
+Animal Tamer Henry
+
+Creative Director Laurel
+
+Much gratitude to Julia for her unrelenting encouragement of random hobbies.
+
+Coded in Kotlin with Google Antigravity, which in no way endorses this project but the makers of this project do endorse Google Antigravity.
+
+Licensed under GPL-4, repository at github.com /BuffaloMtnBill /Typing-Toucan
+
