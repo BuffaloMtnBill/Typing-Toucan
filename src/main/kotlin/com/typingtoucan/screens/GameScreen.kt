@@ -397,7 +397,7 @@ class GameScreen(
                      if (neck.x + neck.width > bird.x) {
                          // Target the LOWER part of the gap to allow for the Flap Arc (approx 100px rise).
                          // Gap Center Y - 180f puts trigger point low, peaking near center.
-                         targetY = neck.gapCenterY - 180f 
+                         targetY = neck.gapCenterY - 140f 
                          break
                      }
                  }
@@ -406,11 +406,13 @@ class GameScreen(
                  if (bird.y < targetY) {
                      // Only flap if we are:
                      // 1. Falling (velocity < 0) - maintain height
-                     // 2. Significantly below target and needing momentum (velocity < 150)
-                     if (bird.velocity < 0 || (bird.y < targetY - 50 && bird.velocity < 150f)) {
+                     // 2. Significantly below target and needing momentum (velocity < 3f)
+                     if (aiFlapCooldown <= 0 && (bird.velocity < 0 || (bird.y < targetY - 60 && bird.velocity < 3f))) {
                          bird.flap()
+                         // aiFlapCooldown = 0.2f // Optional small cooldown
                      }
                  }
+                 if (aiFlapCooldown > 0) aiFlapCooldown -= delta
              }
         }
 
@@ -1219,8 +1221,14 @@ class GameScreen(
             cachedWeightStr = weightFlashValue.toString()
 
             weightFlashTimer = 1.0f
-            bird.flap()
-            soundManager.playFlap()
+            weightFlashTimer = 1.0f
+            
+            // Only flap on key press if NOT in Autoplay mode.
+            // In Autoplay, the Flight AI handles flapping.
+            if (!isAutoplay) {
+                bird.flap()
+                soundManager.playFlap()
+            }
 
             if (isPracticeMode) {
                 streak++
