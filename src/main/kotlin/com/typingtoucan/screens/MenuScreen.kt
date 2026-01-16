@@ -390,7 +390,8 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
                         val file = Gdx.files.internal("assets/credits.txt")
                         val text = file.readString()
                         // Credits file is newline separated
-                        val lines = text.split("\n").filter { it.isNotBlank() }
+                        // Keep empty lines to allow for scrolling spacing
+                        val lines = text.split("\n")
                         val items = lines.map { com.typingtoucan.systems.PassageItem(it.trim(), "") }
                         val src = com.typingtoucan.systems.TextSnippetSource(items, sequential = true)
 
