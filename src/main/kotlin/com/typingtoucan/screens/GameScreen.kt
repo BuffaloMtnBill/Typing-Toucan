@@ -123,6 +123,7 @@ class GameScreen(
     private var level = 1
     private var totalNecksSpawned = 0
     private var autoplayTimer = 0f
+    private var aiFlapCooldown = 0f
 
     // Weight Flash
     private var weightFlashValue = 0
@@ -394,19 +395,21 @@ class GameScreen(
                  for (neck in necks) {
                      // small buffer on X (bird.x + bird.width)
                      if (neck.x + neck.width > bird.x) {
-                         // Use gapCenterY directly from Neck entity
-                         // Offset down slightly so Bird Body (above Y) centers in gap
-                         targetY = neck.gapCenterY - 20f 
+                         // Target the LOWER part of the gap to allow for the Flap Arc (approx 100px rise).
+                         // Gap Center Y - 180f puts trigger point low, peaking near center.
+                         targetY = neck.gapCenterY - 180f 
                          break
                      }
                  }
                  
-                 // Flap if below target
-                 // Increase velocity cap to allow steep climbs
-                 if (bird.y < targetY && bird.velocity < 250f) {
-                     bird.flap()
-                     // Mute flap sound in credits? User didn't say.
-                     // soundManager.playFlap() 
+                 // Flap Logic: Physics-based
+                 if (bird.y < targetY) {
+                     // Only flap if we are:
+                     // 1. Falling (velocity < 0) - maintain height
+                     // 2. Significantly below target and needing momentum (velocity < 150)
+                     if (bird.velocity < 0 || (bird.y < targetY - 50 && bird.velocity < 150f)) {
+                         bird.flap()
+                     }
                  }
              }
         }
@@ -554,8 +557,12 @@ class GameScreen(
                     soundManager.playCrash()
                     hurtTimer = 0.5f // Flash red and show pain sprite
 
-                    // RECOIL: Bounce bird up slightly to prevent "dead drop"
-                    bird.velocity = 7f // A bit less than a full flap (10f)
+                    // RECOIL: Bounce bird away from obstacle
+                    if (com.badlogic.gdx.math.Intersector.overlaps(bird.bounds, neck.topBounds)) {
+                        bird.velocity = -5f // Push Down (hit ceiling/top pipe)
+                    } else {
+                        bird.velocity = 7f // Push Up (hit floor/bottom pipe)
+                    }
 
                     if (isPracticeMode) {
                         // Text Mode Logic
