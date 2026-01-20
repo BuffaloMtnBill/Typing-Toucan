@@ -9,13 +9,14 @@ import com.badlogic.gdx.Preferences
  * Saves and loads high scores and user preferences.
  */
 object SaveManager {
-    private const val PREFS_NAME = "TappyBirdPrefs"
+    private const val PREFS_NAME = "TypingToucanPrefs"
     private const val HIGH_SCORE_KEY = "highScore" // Legacy
     private val prefs: Preferences by lazy { Gdx.app.getPreferences(PREFS_NAME) }
 
-    private const val KEY_NORMAL_LEVEL = "highScore_Level"
-    private const val KEY_CUSTOM_STREAK = "highScore_CustomStreak"
-    private const val KEY_TEXT_STREAK = "highScore_TextStreak"
+    private const val KEY_NORMAL_LEVEL = "normal_level"
+    private const val KEY_CUSTOM_STREAK = "custom_streak_v2"
+    private const val KEY_TEXT_STREAK = "text_streak_v2"
+    private const val KEY_ARCADE_STREAK = "arcade_streak"
 
     // Normal Mode (Level)
     fun saveNormalLevel(level: Int) {
@@ -47,11 +48,22 @@ object SaveManager {
     }
     fun getTextStreak(): Int = prefs.getInteger(KEY_TEXT_STREAK, 0)
 
+    // Arcade Mode (Streak)
+    fun saveArcadeStreak(streak: Int) {
+        val current = getArcadeStreak()
+        if (streak > current) {
+            prefs.putInteger(KEY_ARCADE_STREAK, streak)
+            prefs.flush()
+        }
+    }
+    fun getArcadeStreak(): Int = prefs.getInteger(KEY_ARCADE_STREAK, 0)
+
     fun resetHighScore() {
         prefs.putInteger(HIGH_SCORE_KEY, 0)
         prefs.putInteger(KEY_NORMAL_LEVEL, 1)
         prefs.putInteger(KEY_CUSTOM_STREAK, 0)
         prefs.putInteger(KEY_TEXT_STREAK, 0)
+        prefs.putInteger(KEY_ARCADE_STREAK, 0)
         prefs.flush()
     }
 

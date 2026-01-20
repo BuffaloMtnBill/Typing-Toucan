@@ -253,4 +253,6 @@ class TextSnippetSource(private val allPassages: List<PassageItem>, private val 
     override fun expandPool(): List<Char> {
         return emptyList()
     }
+    
+    fun getTypedIndex(): Int = typedIndex
 }

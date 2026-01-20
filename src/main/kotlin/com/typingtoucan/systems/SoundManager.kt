@@ -47,6 +47,9 @@ class SoundManager {
                 switchMusic(value)
             }
         }
+    
+    /** The track selected by the user in the menu, to be applied when the game starts. */
+    var pendingTrack: MusicTrack = MusicTrack.WHAT
 
     init {
         // SFX
@@ -141,6 +144,13 @@ class SoundManager {
     /** Plays the error sound effect. */
     fun playError() {
         if (soundEnabled) errorSound?.play(0.6f)
+    }
+
+    /** Plays the menu selection sound (score1). */
+    fun playMenuSelect() {
+        if (soundEnabled && scoreSounds.size > 0) {
+            scoreSounds[0].play(0.5f)
+        }
     }
 
     /** Starts playing the background music if enabled and not already playing. */

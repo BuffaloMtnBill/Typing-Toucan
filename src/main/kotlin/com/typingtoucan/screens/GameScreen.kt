@@ -35,7 +35,8 @@ class GameScreen(
         private val isPracticeMode: Boolean = false,
         private val customSource: com.typingtoucan.systems.TypingSource? = null,
         private val isAutoplay: Boolean = false,
-        private val startLevel: Int = 1
+        private val startLevel: Int = 1,
+        private val isArcadeMode: Boolean = false
 ) : Screen, InputProcessor {
     private val camera = OrthographicCamera().apply { setToOrtho(false, 800f, 600f) }
     private val viewport = com.badlogic.gdx.utils.viewport.ExtendViewport(800f, 600f, camera)
@@ -95,9 +96,9 @@ class GameScreen(
     private var pauseState: PauseState = PauseState.NONE
 
     private val mainMenuItems =
-            if (customSource is com.typingtoucan.systems.CustomPoolSource) {
+            if (customSource is com.typingtoucan.systems.CustomPoolSource && !isArcadeMode) {
                 listOf("Resume", "Difficulty", "Audio", "Letter Selection Menu", "Main Menu")
-            } else if (customSource is com.typingtoucan.systems.TextSnippetSource) {
+            } else if (customSource is com.typingtoucan.systems.TextSnippetSource || isArcadeMode) {
                 listOf("Resume", "Difficulty", "Audio", "Main Menu")
             } else {
                 listOf("Resume", "Difficulty", "Capitals", "Audio", "Main Menu")
@@ -108,6 +109,8 @@ class GameScreen(
 
     private var neckTimer = 0f
     private var nextNeckInterval = diffManager.neckInterval // Initialize with default
+
+    private val SELECTED_COLOR = Color(1f, 0.906f, 0f, 1f) // #ffe700
     private var score = 0
     private var progressionPoints = 0
     private var displayProgression = 0f // Fluid animation value
@@ -146,7 +149,7 @@ class GameScreen(
 
     // Cached Draw Strings
     private var cachedQueueStr = ""
-    private var cachedLevelStr = "1"
+    private var cachedLevelStr = startLevel.toString()
     private var cachedWeightStr = ""
     private val descenders = listOf("g", "j", "p", "q", "y") // Static allocation
 
@@ -285,7 +288,7 @@ class GameScreen(
 
         // Initialize Performance Caches
         toucanPainRegion = TextureRegion(toucanPainTexture)
-        practiceModeLayout.setText(uiFont, "PRACTICE MODE")
+        practiceModeLayout.setText(uiFont, "Practice Mode - Obstacles Disabled")
         startTextLayout.setText(queueFont, "TYPE TO START")
         escTextLayout.setText(uiFont, "Press ESC for Menu")
         victoryTextLayout.setText(queueFont, "VICTORY!")
@@ -302,7 +305,10 @@ class GameScreen(
         }
         
         // Initialize High Scores
-        if (isPracticeMode) {
+        if (isArcadeMode) {
+            topHighScore = com.typingtoucan.utils.SaveManager.getArcadeStreak()
+            maxStreak = topHighScore
+        } else if (isPracticeMode) {
             if (customSource is com.typingtoucan.systems.CustomPoolSource) {
                  topHighScore = com.typingtoucan.utils.SaveManager.getCustomStreak()
             } else {
@@ -323,7 +329,10 @@ class GameScreen(
         updateQueueString()
 
         // Switch to Game Music but don't play yet (wait for gameStarted)
-        game.soundManager.currentTrack = com.typingtoucan.systems.SoundManager.MusicTrack.WHAT
+        // Apply pending track selection
+        if (game.soundManager.currentTrack != game.soundManager.pendingTrack) {
+             game.soundManager.currentTrack = game.soundManager.pendingTrack
+        }
         game.soundManager.stopMusic()
     }
 
@@ -409,7 +418,7 @@ class GameScreen(
         if (isAutoplay) {
              autoplayTimer -= delta
              if (autoplayTimer <= 0) {
-                  autoplayTimer = 0.08f // Approx 12.5 chars/sec (25% slower)
+                  autoplayTimer = 0.11f // Approx 9 chars/sec (Further slowed)
                   if (typingQueue.queue.isNotEmpty()) {
                       keyTyped(typingQueue.queue.first())
                   }
@@ -1086,10 +1095,10 @@ class GameScreen(
         if (!isAutoplay) {
              val levelCommonCenter = viewport.worldWidth - 60f
              
-             if (isPracticeMode) {
-                 // --- PRACTICE/TEXT MODE ---
+             if (isPracticeMode || isArcadeMode) {
+                 // --- PRACTICE/TEXT/ARCADE MODE ---
                  // Top: BEST STREAK
-                 val maxLabel = "BEST STREAK"
+                 val maxLabel = "HIGH SCORE"
                  layout.setText(smallFont, maxLabel)
                  smallFont.draw(game.batch, maxLabel, levelCommonCenter - layout.width / 2, viewport.worldHeight - 30f)
                  
@@ -1125,7 +1134,7 @@ class GameScreen(
              } else {
                  // --- NORMAL MODE ---
                  // Top: BEST LEVEL
-                 val bestLabel = "BEST LEVEL"
+                 val bestLabel = "High Score"
                  layout.setText(smallFont, bestLabel)
                  smallFont.draw(game.batch, bestLabel, levelCommonCenter - layout.width / 2, viewport.worldHeight - 30f)
                  
@@ -1205,7 +1214,9 @@ class GameScreen(
         }
 
         // Queue Text
+        // Queue Text
         if (pauseState == PauseState.NONE && customSource !is com.typingtoucan.systems.TextSnippetSource) {
+            // Standard single-line queue
             // Underscore already drawn in shapes
             layout.setText(queueFont, cachedQueueStr)
             val textX = viewport.worldWidth / 2f - layout.width / 2
@@ -1269,11 +1280,13 @@ class GameScreen(
                 soundManager.playFlap()
             }
 
-            if (isPracticeMode) {
+            if (isPracticeMode || isArcadeMode) {
                 streak++
                 if (!isAutoplay && streak > topHighScore) {
                     topHighScore = streak
-                    if (customSource is com.typingtoucan.systems.CustomPoolSource) {
+                    if (isArcadeMode) {
+                         com.typingtoucan.utils.SaveManager.saveArcadeStreak(streak)
+                    } else if (customSource is com.typingtoucan.systems.CustomPoolSource) {
                         com.typingtoucan.utils.SaveManager.saveCustomStreak(streak)
                     } else {
                         com.typingtoucan.utils.SaveManager.saveTextStreak(streak)
@@ -1299,7 +1312,7 @@ class GameScreen(
                 // Progression penalty
                 progressionPoints = (progressionPoints - 1).coerceAtLeast(0)
 
-                if (isPracticeMode) {
+                if (isPracticeMode || isArcadeMode) {
                     streak = 0
                 }
             }
@@ -1355,7 +1368,7 @@ class GameScreen(
                         else -> item
                     }
             val isSelected = index == menuSelectedIndex
-            uiFont.color = if (isSelected) Color.CYAN else Color.WHITE
+            uiFont.color = if (isSelected) SELECTED_COLOR else Color.WHITE
 
             layout.setText(uiFont, label)
             val x = centerX - layout.width / 2
@@ -1389,7 +1402,7 @@ class GameScreen(
                     }
 
             val isSelected = index == menuSelectedIndex
-            uiFont.color = if (isSelected) Color.CYAN else Color.WHITE
+            uiFont.color = if (isSelected) SELECTED_COLOR else Color.WHITE
 
             layout.setText(uiFont, label)
             uiFont.draw(game.batch, label, centerX - layout.width / 2, startY - (index * gap))
@@ -1442,8 +1455,6 @@ class GameScreen(
                     typingQueue.setCapitalsEnabled(newState)
                 } else if (selectedItem == "Letter Selection Menu") {
                     game.screen = CustomSetupScreen(game)
-                } else if (selectedItem == "Select Text") {
-                    game.screen = TextSetupScreen(game)
                 } else if (selectedItem == "Audio") {
                     pauseState = PauseState.AUDIO
                     menuSelectedIndex = 0
@@ -1518,6 +1529,9 @@ class GameScreen(
     }
     
     private fun executePauseMenuAction() {
+            // Play Selection Sound
+            game.soundManager.playMenuSelect()
+
             if (pauseState == PauseState.MAIN) {
                 val selectedItem = mainMenuItems[menuSelectedIndex]
                 if (selectedItem == "Resume") {

@@ -53,6 +53,8 @@ class CustomSetupScreen(val game: TypingToucanGame) : Screen, InputProcessor {
     private var isShiftActive = false
     private lateinit var instructionFont: BitmapFont
 
+    private val SELECTED_COLOR = Color(1f, 0.906f, 0f, 1f) // #ffe700
+
     init {
         // Font
         val generator =
@@ -175,8 +177,8 @@ class CustomSetupScreen(val game: TypingToucanGame) : Screen, InputProcessor {
 
             if (isSelected) {
                 if (effectiveShift) {
-                    // Shift Active -> Show as selected with Capitals (Cyan for Mixed/Both)
-                    shapeRenderer.color = Color.CYAN
+                    // Shift Active -> Show as selected with Capitals (Teal for Mixed/Both)
+                    shapeRenderer.color = SELECTED_COLOR
                 } else {
                     // Shift Inactive -> Show as Lowercase only (Green)
                     shapeRenderer.color = Color.GREEN
@@ -189,7 +191,7 @@ class CustomSetupScreen(val game: TypingToucanGame) : Screen, InputProcessor {
         }
 
         // Draw Shift/Caps Button
-        shapeRenderer.color = if (effectiveShift) Color.CYAN else Color.DARK_GRAY
+        shapeRenderer.color = if (effectiveShift) SELECTED_COLOR else Color.DARK_GRAY
         shapeRenderer.rect(capsRect.x, capsRect.y, capsRect.width, capsRect.height)
 
         // Draw Start Button
@@ -197,7 +199,7 @@ class CustomSetupScreen(val game: TypingToucanGame) : Screen, InputProcessor {
         if (enterPressed && validSelection) {
             shapeRenderer.color = Color.WHITE // flash
         } else {
-            shapeRenderer.color = if (validSelection) Color.CYAN else Color.GRAY
+            shapeRenderer.color = if (validSelection) SELECTED_COLOR else Color.GRAY
         }
         shapeRenderer.rect(startRect.x, startRect.y, startRect.width, startRect.height)
 

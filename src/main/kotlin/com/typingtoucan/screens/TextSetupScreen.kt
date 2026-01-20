@@ -11,7 +11,7 @@ import com.typingtoucan.systems.TextSnippetSource
  * Screen used to initialize "Text Mode".
  * Automatically loads passages and starts the game.
  */
-class TextSetupScreen(val game: TypingToucanGame) : Screen {
+class TextSetupScreen(val game: TypingToucanGame, val difficulty: DifficultyManager.Difficulty) : Screen {
 
     init {
         // No font init needed if we jump straight to game
@@ -27,7 +27,7 @@ class TextSetupScreen(val game: TypingToucanGame) : Screen {
         if (passages.isNotEmpty()) {
             game.screen = GameScreen(
                 game,
-                DifficultyManager.Difficulty.NORMAL,
+                difficulty,
                 isPracticeMode = true,
                 customSource = TextSnippetSource(passages)
             )
