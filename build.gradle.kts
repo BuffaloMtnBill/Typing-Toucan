@@ -37,6 +37,9 @@ dependencies {
     // LibGDX Freetype
     implementation("com.badlogicgames.gdx:gdx-freetype:$gdxVersion")
     implementation("com.badlogicgames.gdx:gdx-freetype-platform:$gdxVersion:natives-desktop")
+    
+    // LibGDX Tools (for TexturePacker)
+    implementation("com.badlogicgames.gdx:gdx-tools:$gdxVersion")
 }
 
 application {
@@ -47,4 +50,9 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
     kotlinOptions {
         jvmTarget = "11"
     }
+}
+
+tasks.register<JavaExec>("packTextures") {
+    mainClass.set("com.typingtoucan.utils.PackTexturesKt")
+    classpath = sourceSets["main"].runtimeClasspath
 }

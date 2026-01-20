@@ -33,11 +33,10 @@ Low-end devices struggle with frequent Garbage Collection (GC) pauses. Minimizin
 ## 2. Rendering Optimization
 Reducing draw calls and state switches allows the GPU to work efficiently.
 
--   **[ ] Implement Texture Atlases**
-    -   **Location**: `TypingToucanGame.kt` & `GameScreen.kt`
-    -   **Issue**: Loading and binding many individual `.png` files breaks the `SpriteBatch`.
-    -   **Fix**: Pack all sprites into a single `.atlas` file (using TexturePacker) and load only the atlas.
-    -   **Benefit**: Huge performance gain on mobile GPUs.
+- [x] Use a Texture Atlas (instead of 30+ individual PNGs)
+    - [x] Status: COMPLETE
+    - [x] Benefit: Reduces draw calls (Batching) and texture swaps significantly.
+    - [x] Effort: Moderate (4/10)
 
 -   **[ ] Preload Ground Animation Textures**
     -   **Location**: `GameScreen.kt`

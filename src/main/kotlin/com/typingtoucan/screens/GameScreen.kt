@@ -49,14 +49,14 @@ class GameScreen(
 
     // Graphics assets
     private lateinit var backgroundTextures: List<Texture>
-    private lateinit var groundTexture: Texture
-    private lateinit var victoryTexture: Texture
-    private lateinit var monkeyTextures: List<Texture>
+    private lateinit var groundTexture: TextureRegion
+    private lateinit var victoryTexture: TextureRegion
+    private lateinit var monkeyTextures: List<TextureRegion>
 
-    private lateinit var currentMonkeyTexture: Texture
+    private lateinit var currentMonkeyTexture: TextureRegion
 
     // Ground Animation
-    private lateinit var groundAnimTextures: Array<Texture>
+    private lateinit var groundAnimTextures: List<TextureRegion>
     private lateinit var groundAnimation: Animation<TextureRegion>
     private var activeGroundIndex = 0
     private var groundTimer = 0f
@@ -67,12 +67,12 @@ class GameScreen(
     }
 
     // Single Sprite Obstacles (50x300)
-    private lateinit var giraffeObstacles: Array<Texture>
-    private lateinit var anacondaObstacles: Array<Texture>
+    private lateinit var giraffeObstacles: Array<TextureRegion>
+    private lateinit var anacondaObstacles: Array<TextureRegion>
 
     // Toucan Assets
-    private lateinit var toucanFrames: Array<Texture>
-    private lateinit var toucanPainTexture: Texture
+    private lateinit var toucanFrames: Array<TextureRegion>
+    private lateinit var toucanPainTexture: TextureRegion
 
     // Animation
     private val birdAnimation: Animation<TextureRegion>
@@ -160,7 +160,6 @@ class GameScreen(
     private val tempColor = Color() // Reusable color object
     private var cachedMarkupLine = "" // For Text Mode
     private var lastLocalProgress = -1 // For Text Mode
-    private lateinit var toucanPainRegion: TextureRegion
 
     private val practiceModeLayout = GlyphLayout()
     private val startTextLayout = GlyphLayout()
@@ -200,85 +199,59 @@ class GameScreen(
 
         generator.dispose()
 
-        // Set Texture Filters
-        // Retrieve Assets from Manager
-        backgroundTextures = listOf(game.assetManager.get("assets/background_panoramic.png"))
+         // Retrieve Assets from Atlas
+         val atlas = game.assetManager.get("assets/atlas/game.atlas", com.badlogic.gdx.graphics.g2d.TextureAtlas::class.java)
 
-        groundTexture = game.assetManager.get("assets/ground.png")
-        victoryTexture = game.assetManager.get("assets/victory_background.png")
+         backgroundTextures = listOf(game.assetManager.get("assets/background_panoramic.png"))
+         groundTexture = atlas.findRegion("ground")
+         victoryTexture = atlas.findRegion("victory_background") // This one was excluded from packing but loaded via assetManager? 
+         // Wait, I excluded victory_background.png in PackTextures.kt.
+         // Let me check my PackTextures.kt again.
+         // excludes = listOf("background_panoramic.png", "title_background.png", "victory_background.png")
+         // So victoryTexture should still be a direct Texture load if I didn't change TypingToucanGame.
+         // Let me re-check TypingToucanGame.kt.
+         // assetManager.load("assets/victory_background.png", Texture) -> Yes, it's a direct load.
+         
+         // So victoryTexture MUST remain a TextureRegion or be converted.
+         // I'll use atlas where I can and AssetManager for the big backgrounds.
+         
+         // I'll convert Big Textures to TextureRegion for consistency in fields.
+         val victoryTex = game.assetManager.get("assets/victory_background.png", com.badlogic.gdx.graphics.Texture::class.java)
+         victoryTexture = TextureRegion(victoryTex)
 
-        // Load Ground Animation Textures (Manually for now since not in AssetManager yet?
-        // Actually, we should probably add them to AssetManager or load direct if safe.
-        // For robustness in this context, let's assume they are available via Gdx.files if not
-        // managed,
-        // but better to use Texture(Gdx.files...) if they aren't preloaded.
-        // Since we just created them, they aren't in TappyBirdGame's loading list.
-        // so we load them directly.
-        groundAnimTextures =
-                Array(2) { i ->
-                    Texture(Gdx.files.internal("assets/ground_anim_${i + 1}.png")).apply {
-                        setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest)
-                        setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat)
-                    }
-                }
+         groundAnimTextures = listOf(atlas.findRegion("ground_anim", 1), atlas.findRegion("ground_anim", 2))
+         val groundFrames = com.badlogic.gdx.utils.Array<TextureRegion>()
+         groundAnimTextures.forEach { groundFrames.add(it) }
+         groundAnimation = Animation(0.8f, groundFrames, Animation.PlayMode.LOOP)
 
-        val frames = com.badlogic.gdx.utils.Array<TextureRegion>()
-        // Pattern: Main -> Anim1 -> Anim2 -> Anim1 -> Loop?
-        // User said: "three frames". Main, Anim1, Anim2.
-        // "cycle between two other frames"
-        // Let's just cycle anim1, anim2.
-        frames.add(TextureRegion(groundAnimTextures[0]))
-        frames.add(TextureRegion(groundAnimTextures[1]))
-        groundAnimation = Animation(0.8f, frames, Animation.PlayMode.LOOP)
+         monkeyTextures = listOf(
+             atlas.findRegion("banana_monkey"),
+             atlas.findRegion("banana_monkey", 1),
+             atlas.findRegion("banana_monkey", 2),
+             atlas.findRegion("banana_monkey", 3),
+             atlas.findRegion("young_monkey"),
+             atlas.findRegion("young_monkey", 1),
+             atlas.findRegion("young_monkey", 2),
+             atlas.findRegion("young_monkey", 3),
+             atlas.findRegion("old_monkey"),
+             atlas.findRegion("old_monkey", 1),
+             atlas.findRegion("old_monkey", 2),
+             atlas.findRegion("old_monkey", 3)
+         )
+         currentMonkeyTexture = monkeyTextures.random()
 
-        monkeyTextures =
-                listOf(
-                        game.assetManager.get("assets/banana_monkey_1.png"),
-                        game.assetManager.get("assets/banana_monkey_2.png"),
-                        game.assetManager.get("assets/banana_monkey_3.png"),
-                        game.assetManager.get("assets/young_monkey_1.png"),
-                        game.assetManager.get("assets/young_monkey_2.png"),
-                        game.assetManager.get("assets/young_monkey_3.png"),
-                        game.assetManager.get("assets/old_monkey_1.png"),
-                        game.assetManager.get("assets/old_monkey_2.png"),
-                        game.assetManager.get("assets/old_monkey_3.png")
-                )
-        currentMonkeyTexture = monkeyTextures.random()
+         giraffeObstacles = Array(5) { i -> atlas.findRegion("giraffe${i + 1}") }
+         anacondaObstacles = Array(2) { i -> atlas.findRegion("anaconda_long", i) }
+         toucanFrames = Array(4) { i -> atlas.findRegion("toucan", i) }
+         toucanPainTexture = atlas.findRegion("toucan_pain")
 
-        giraffeObstacles = Array(5) { i -> game.assetManager.get("assets/giraffe${i + 1}.png") }
-        anacondaObstacles = Array(2) { i -> game.assetManager.get("assets/anaconda_long_$i.png") }
-        toucanFrames = Array(4) { i -> game.assetManager.get("assets/toucan_$i.png") }
-        toucanPainTexture = game.assetManager.get("assets/toucan_pain.png")
-
-        // Set Texture Filters
-        backgroundTextures.forEach {
-            it.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest)
-        }
-        monkeyTextures.forEach {
-            it.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest)
-        }
-        currentMonkeyTexture = monkeyTextures.random()
-
-        groundTexture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest)
-        giraffeObstacles.forEach {
-            it.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest)
-        }
-        anacondaObstacles.forEach {
-            it.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest)
-        }
-        toucanFrames.forEach {
-            it.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest)
-        }
-        toucanPainTexture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest)
-
-        // Setup Bird Animation
-        val birdRegions = com.badlogic.gdx.utils.Array<TextureRegion>(4)
-        toucanFrames.forEach { texture -> birdRegions.add(TextureRegion(texture)) }
-        birdAnimation = Animation(0.1f, birdRegions, Animation.PlayMode.LOOP)
-
-        // Setup textures for tiling/wrapping
-        groundTexture.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat)
-        // No need to wrap obstacles anymore as we aren't tiling
+         // Bitmaps and other assets don't need filtering here if they are regions.
+         // Atlas pages already have filtering set in the .atlas file (Nearest, Nearest).
+         
+         // Setup Bird Animation
+         val birdRegions = com.badlogic.gdx.utils.Array<TextureRegion>(4)
+         toucanFrames.forEach { birdRegions.add(it) }
+         birdAnimation = Animation(0.1f, birdRegions, Animation.PlayMode.LOOP)
 
         updateQueueString()
 
@@ -287,14 +260,13 @@ class GameScreen(
         bird.flapStrength = diffManager.flapStrength
 
         // Initial Monkey Pos for first run
-        val scale = 150f / currentMonkeyTexture.height.toFloat()
-        val mWidth = currentMonkeyTexture.width * scale
+        val scale = 150f / currentMonkeyTexture.regionHeight.toFloat()
+        val mWidth = currentMonkeyTexture.regionWidth * scale
         val distanceToSpawn = diffManager.scrollSpeed * nextNeckInterval
         monkeyX = viewport.worldWidth + distanceToSpawn - 90f - mWidth
         monkeyPassed = false
 
         // Initialize Performance Caches
-        toucanPainRegion = TextureRegion(toucanPainTexture)
         practiceModeLayout.setText(uiFont, "Practice Mode - Obstacles Disabled")
         startTextLayout.setText(queueFont, "TYPE TO START")
         escTextLayout.setText(uiFont, "Press ESC for Menu")
@@ -518,7 +490,7 @@ class GameScreen(
             currentBgIndex = nextBgIndex
             nextBgIndex = backgroundTextures.indices.random()
         }
-        if (groundX <= -groundTexture.width.toFloat()) groundX = 0f
+        if (groundX <= -groundTexture.regionWidth.toFloat()) groundX = 0f
         // Neck Spawning
         neckTimer += delta
         if (neckTimer >= nextNeckInterval) {
@@ -685,8 +657,8 @@ class GameScreen(
 
         // Position Monkey: Screen End + Distance to spawn - 90 buffer - MonkeyWidth
         currentMonkeyTexture = monkeyTextures.random()
-        val scale = 150f / currentMonkeyTexture.height.toFloat()
-        val mWidth = currentMonkeyTexture.width * scale
+        val scale = 150f / currentMonkeyTexture.regionHeight.toFloat()
+        val mWidth = currentMonkeyTexture.regionWidth * scale
         val distanceToSpawn = diffManager.scrollSpeed * nextNeckInterval
         monkeyX = viewport.worldWidth + distanceToSpawn - 90f - mWidth
         monkeyPassed = false
@@ -753,7 +725,7 @@ class GameScreen(
 
         // Draw Ground (Tiled)
         // Draw Ground (Dynamic Tiling)
-        val groundW = groundTexture.width.toFloat()
+        val groundW = groundTexture.regionWidth.toFloat()
         val numGroundTiles = kotlin.math.ceil(viewport.worldWidth / groundW).toInt() + 1
 
         val textureToDraw =
@@ -769,15 +741,15 @@ class GameScreen(
 
         // Draw Monkey (if visible)
         if (monkeyX > -200) { // Simple culling
-            val scale = 150f / currentMonkeyTexture.height.toFloat()
-            val width = currentMonkeyTexture.width * scale
+            val scale = 150f / currentMonkeyTexture.regionHeight.toFloat()
+            val width = currentMonkeyTexture.regionWidth * scale
             game.batch.draw(currentMonkeyTexture, monkeyX, 40f, width, 150f)
         }
 
         // Draw Bird
         val currentFrame =
                 if (hurtTimer > 0) {
-                    toucanPainRegion // Use cached region
+                    toucanPainTexture // Use regional texture directly
                 } else {
                     birdAnimation.getKeyFrame(stateTime, true)
                 }
@@ -1317,11 +1289,7 @@ class GameScreen(
         // TappyBirdGame disposes AssetManager on exit.
 
         // soundManager is owned by Game, do not dispose here
-
-        // Dispose locally loaded textures
-        if (::groundAnimTextures.isInitialized) {
-            groundAnimTextures.forEach { it.dispose() }
-        }
+        // Textures are owned by AssetManager/Atlas, do not dispose here
     }
 
     private fun drawPauseMainMenu() {

@@ -75,29 +75,17 @@ class Neck(var x: Float, val gapCenterY: Float, val isSnake: Boolean = false) {
      * @param batch The [SpriteBatch] used for drawing.
      * @param texture The texture to use for the obstacles.
      */
-    fun render(batch: SpriteBatch, texture: Texture) {
+    fun render(batch: SpriteBatch, region: com.badlogic.gdx.graphics.g2d.TextureRegion) {
         // Calculate centered draw X
-        // drawX = x + width/2 - DRAW_WIDTH/2
         val drawX = x + (width / 2) - (DRAW_WIDTH / 2)
 
         // --- BOTTOM NECK ---
-        // Top of sprite aligned with bottomHeight
-        batch.draw(texture, drawX, bottomHeight - DRAW_HEIGHT, DRAW_WIDTH, DRAW_HEIGHT)
+        batch.draw(region, drawX, bottomHeight - DRAW_HEIGHT, DRAW_WIDTH, DRAW_HEIGHT)
 
         // --- TOP NECK ---
-        // Bottom of sprite aligned with topY, flipped vertically
-        batch.draw(
-                texture,
-                drawX,
-                topY,
-                DRAW_WIDTH,
-                DRAW_HEIGHT,
-                0,
-                0,
-                texture.width,
-                texture.height,
-                false,
-                true // Flip Y
-        )
+        // Flip the region temporarily to draw the top neck
+        region.flip(false, true)
+        batch.draw(region, drawX, topY, DRAW_WIDTH, DRAW_HEIGHT)
+        region.flip(false, true) // Flip back
     }
 }
