@@ -27,9 +27,9 @@ import com.typingtoucan.utils.SaveManager
  */
 class MenuScreen(val game: TypingToucanGame) : Screen {
     private val stage = Stage(ScreenViewport())
-    private lateinit var backgroundTexture: Texture
     private val camera = OrthographicCamera().apply { setToOrtho(false, 800f, 600f) }
     private val viewport = com.badlogic.gdx.utils.viewport.ExtendViewport(800f, 600f, camera)
+    private val tempVec = com.badlogic.gdx.math.Vector3()
 
     /** List of main menu options. */
     private val options = listOf("Learn to Type", "Practice", "Arcade", "Text Typing", "Options", "Credits")
@@ -84,21 +84,21 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
                 FreeTypeFontGenerator(Gdx.files.internal("assets/OriginalSurfer-Regular.ttf"))
 
         val titleParam = FreeTypeFontGenerator.FreeTypeFontParameter()
-        titleParam.size = 60
+        titleParam.size = 70 // Increased for mobile visibility
         titleParam.color = Color.GOLD
         titleParam.borderColor = Color.BLACK
         titleParam.borderWidth = 3f
         titleFont = generator.generateFont(titleParam)
 
         val menuParam = FreeTypeFontGenerator.FreeTypeFontParameter()
-        menuParam.size = 30
+        menuParam.size = 35 // Increased for mobile visibility
         menuParam.color = Color.WHITE
         menuParam.borderColor = Color.BLACK
         menuParam.borderWidth = 2f
         menuFont = generator.generateFont(menuParam)
 
         val captionParam = FreeTypeFontGenerator.FreeTypeFontParameter()
-        captionParam.size = 20
+        captionParam.size = 24 // Increased for mobile visibility
         captionParam.color = Color.LIGHT_GRAY
         captionParam.borderColor = Color.BLACK
         captionParam.borderWidth = 1f
@@ -147,7 +147,7 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
 
         // Title
         val centerX = viewport.worldWidth / 2f
-        val topY = viewport.worldHeight - 50f
+        val topY = viewport.worldHeight - 70f // Increased padding from top
 
         layout.setText(titleFont, "TYPING TOUCAN")
         titleFont.draw(game.batch, "TYPING TOUCAN", centerX - layout.width / 2, topY)
@@ -209,7 +209,7 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
         if (selectedIndex in descriptions.indices) {
             val caption = descriptions[selectedIndex]
             layout.setText(captionFont, caption)
-            captionFont.draw(game.batch, caption, centerX - layout.width / 2, 60f)
+            captionFont.draw(game.batch, caption, centerX - layout.width / 2, 80f) // Increased padding from bottom
         }
     }
 
@@ -313,8 +313,9 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
         if (Gdx.input.justTouched()) {
             val touchX = Gdx.input.x.toFloat()
             val touchY = Gdx.input.y.toFloat()
-            // Unproject to world coordinates
-            val worldPos = camera.unproject(com.badlogic.gdx.math.Vector3(touchX, touchY, 0f))
+            // Unproject to world coordinates using reusable vector
+            tempVec.set(touchX, touchY, 0f)
+            val worldPos = camera.unproject(tempVec)
 
             val centerX = viewport.worldWidth / 2f
             val centerY = viewport.worldHeight / 2f + 50f
@@ -555,8 +556,12 @@ class MenuScreen(val game: TypingToucanGame) : Screen {
         viewport.update(width, height, true)
         camera.position.set(viewport.worldWidth / 2f, viewport.worldHeight / 2f, 0f)
     }
-    override fun pause() {}
-    override fun resume() {}
+    override fun pause() {
+        game.soundManager.pauseMusic()
+    }
+    override fun resume() {
+        game.soundManager.resumeMusic()
+    }
     override fun hide() {}
     override fun dispose() {
         titleFont.dispose()

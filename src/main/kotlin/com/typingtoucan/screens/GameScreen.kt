@@ -48,11 +48,10 @@ class GameScreen(
     private var smallFont: com.badlogic.gdx.graphics.g2d.BitmapFont
 
     // Graphics assets
-    private lateinit var backgroundTextures: List<Texture>
+    private lateinit var backgroundTexture: Texture
     private lateinit var groundTexture: TextureRegion
     private lateinit var victoryTexture: TextureRegion
     private lateinit var monkeyTextures: List<TextureRegion>
-
     private lateinit var currentMonkeyTexture: TextureRegion
 
     // Ground Animation
@@ -71,7 +70,6 @@ class GameScreen(
     private lateinit var anacondaObstacles: Array<TextureRegion>
 
     // Toucan Assets
-    private lateinit var toucanFrames: Array<TextureRegion>
     private lateinit var toucanPainTexture: TextureRegion
 
     // Animation
@@ -81,6 +79,9 @@ class GameScreen(
     // Game State
     private val shapeRenderer = ShapeRenderer()
     private val bird = Bird(90f, 400f)
+    private val neckPool = object : com.badlogic.gdx.utils.Pool<Neck>() {
+        override fun newObject(): Neck = Neck()
+    }
     private val necks = com.badlogic.gdx.utils.Array<Neck>()
     private val typingQueue =
             com.typingtoucan.systems.TypingQueue(
@@ -91,7 +92,8 @@ class GameScreen(
         NONE,
         MAIN,
         AUDIO,
-        VICTORY
+        VICTORY,
+        EXIT_CONFIRM
     }
     private var pauseState: PauseState = PauseState.NONE
 
@@ -104,6 +106,7 @@ class GameScreen(
                 listOf("Resume", "Difficulty", "Capitals", "Audio", "Main Menu")
             }
     private val audioMenuItems = listOf("Sound", "Music", "Music Track", "Back")
+    private val exitConfirmItems = listOf("Yes", "No")
     private var menuSelectedIndex = 0
     private val soundManager = game.soundManager
 
@@ -174,7 +177,7 @@ class GameScreen(
         val generator =
                 FreeTypeFontGenerator(Gdx.files.internal("assets/OriginalSurfer-Regular.ttf"))
         val parameter = FreeTypeFontGenerator.FreeTypeFontParameter()
-        parameter.size = 20
+        parameter.size = 26 // Increased for mobile
         parameter.color = Color.WHITE
         parameter.borderColor = Color.BLACK
         parameter.borderWidth = 2f
@@ -182,7 +185,7 @@ class GameScreen(
 
         // Create large font for queue display
         val queueParam = FreeTypeFontGenerator.FreeTypeFontParameter()
-        queueParam.size = 60 // Large size
+        queueParam.size = 70 // Increased for mobile
         queueParam.color = Color.WHITE // Will be updated dynamically
         queueParam.borderColor = Color.BLACK
         queueParam.borderWidth = 4f // Thicker border
@@ -191,7 +194,7 @@ class GameScreen(
 
         // Create smaller font for "LEVEL" label
         val labelParam = FreeTypeFontGenerator.FreeTypeFontParameter()
-        labelParam.size = 14
+        labelParam.size = 18 // Increased for mobile
         labelParam.color = Color.WHITE
         labelParam.borderColor = Color.BLACK
         labelParam.borderWidth = 1f
@@ -202,26 +205,19 @@ class GameScreen(
          // Retrieve Assets from Atlas
          val atlas = game.assetManager.get("assets/atlas/game.atlas", com.badlogic.gdx.graphics.g2d.TextureAtlas::class.java)
 
-         backgroundTextures = listOf(game.assetManager.get("assets/background_panoramic.png"))
+         backgroundTexture = game.assetManager.get("assets/background_panoramic.png")
          groundTexture = atlas.findRegion("ground")
-         victoryTexture = atlas.findRegion("victory_background") // This one was excluded from packing but loaded via assetManager? 
-         // Wait, I excluded victory_background.png in PackTextures.kt.
-         // Let me check my PackTextures.kt again.
-         // excludes = listOf("background_panoramic.png", "title_background.png", "victory_background.png")
-         // So victoryTexture should still be a direct Texture load if I didn't change TypingToucanGame.
-         // Let me re-check TypingToucanGame.kt.
-         // assetManager.load("assets/victory_background.png", Texture) -> Yes, it's a direct load.
          
-         // So victoryTexture MUST remain a TextureRegion or be converted.
-         // I'll use atlas where I can and AssetManager for the big backgrounds.
-         
-         // I'll convert Big Textures to TextureRegion for consistency in fields.
+         // Big Textures (Direct loads converted to Regions)
          val victoryTex = game.assetManager.get("assets/victory_background.png", com.badlogic.gdx.graphics.Texture::class.java)
          victoryTexture = TextureRegion(victoryTex)
 
-         groundAnimTextures = listOf(atlas.findRegion("ground_anim", 1), atlas.findRegion("ground_anim", 2))
          val groundFrames = com.badlogic.gdx.utils.Array<TextureRegion>()
-         groundAnimTextures.forEach { groundFrames.add(it) }
+         val anim1 = atlas.findRegion("ground_anim", 1)
+         val anim2 = atlas.findRegion("ground_anim", 2)
+         groundAnimTextures = listOf(anim1, anim2)
+         groundFrames.add(anim1)
+         groundFrames.add(anim2)
          groundAnimation = Animation(0.8f, groundFrames, Animation.PlayMode.LOOP)
 
          monkeyTextures = listOf(
@@ -242,15 +238,13 @@ class GameScreen(
 
          giraffeObstacles = Array(5) { i -> atlas.findRegion("giraffe${i + 1}") }
          anacondaObstacles = Array(2) { i -> atlas.findRegion("anaconda_long", i) }
-         toucanFrames = Array(4) { i -> atlas.findRegion("toucan", i) }
          toucanPainTexture = atlas.findRegion("toucan_pain")
 
-         // Bitmaps and other assets don't need filtering here if they are regions.
-         // Atlas pages already have filtering set in the .atlas file (Nearest, Nearest).
-         
          // Setup Bird Animation
          val birdRegions = com.badlogic.gdx.utils.Array<TextureRegion>(4)
-         toucanFrames.forEach { birdRegions.add(it) }
+         for (i in 0 until 4) {
+             birdRegions.add(atlas.findRegion("toucan", i))
+         }
          birdAnimation = Animation(0.1f, birdRegions, Animation.PlayMode.LOOP)
 
         updateQueueString()
@@ -338,6 +332,7 @@ class GameScreen(
         }
     }
 
+
     override fun render(delta: Float) {
         // Handle Input for Pause/Back
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE) || Gdx.input.isKeyJustPressed(Input.Keys.BACK)) {
@@ -346,13 +341,20 @@ class GameScreen(
             } else if (pauseState == PauseState.NONE) {
                 pauseState = PauseState.MAIN
                 menuSelectedIndex = 0
+                game.soundManager.pauseMusic()
             } else if (pauseState == PauseState.AUDIO) {
                 pauseState = PauseState.MAIN
                 menuSelectedIndex = 3
+            } else if (pauseState == PauseState.MAIN) {
+                pauseState = PauseState.EXIT_CONFIRM
+                menuSelectedIndex = 1 // Default to 'No'
+            } else if (pauseState == PauseState.EXIT_CONFIRM) {
+                game.soundManager.stopMusic()
+                game.screen = MenuScreen(game)
             } else {
                 pauseState = PauseState.NONE
+                game.soundManager.resumeMusic()
             }
-            // Consumed, don't propagate Back action to OS if possible (LibGDX usually handles this)
         }
 
         // Handle Enter for Victory
@@ -481,14 +483,11 @@ class GameScreen(
             soundManager.playMonkey()
         }
 
-        val currentBg = backgroundTextures[currentBgIndex]
-        val scaleFactor = viewport.worldHeight / currentBg.height.toFloat()
-        val renderedWidth = currentBg.width * scaleFactor
+        val scaleFactor = viewport.worldHeight / backgroundTexture.height.toFloat()
+        val renderedWidth = backgroundTexture.width * scaleFactor
 
         if (backgroundX <= -renderedWidth) {
             backgroundX += renderedWidth
-            currentBgIndex = nextBgIndex
-            nextBgIndex = backgroundTextures.indices.random()
         }
         if (groundX <= -groundTexture.regionWidth.toFloat()) groundX = 0f
         // Neck Spawning
@@ -512,7 +511,9 @@ class GameScreen(
             // Neck is just x,y,gap,width.
             // X should be worldWidth + some buffer
             val isSnake = Math.random() < 0.125 // 1/8 chance
-            necks.add(Neck(viewport.worldWidth + 50f, gapY, isSnake))
+            val neck = neckPool.obtain()
+            neck.init(viewport.worldWidth + 50f, gapY, isSnake)
+            necks.add(neck)
             totalNecksSpawned++
         }
 
@@ -521,6 +522,7 @@ class GameScreen(
             neck.update(delta, diffManager.scrollSpeed)
 
             if (neck.x + neck.width < 0) {
+                neckPool.free(neck)
                 necks.removeIndex(i)
                 continue
             }
@@ -647,6 +649,8 @@ class GameScreen(
         bird.x = 100f
         bird.y = 300f
         bird.velocity = 0f
+        
+        neckPool.freeAll(necks)
         necks.clear()
         hurtTimer = 0f
         flashTimer = 0f
@@ -687,29 +691,17 @@ class GameScreen(
         // But let's be robust.
         // Draw Background (Variable Width Support)
         // Draw Background (Variable Width Support + Proportional Scaling)
-        val currentBg = backgroundTextures[currentBgIndex]
         // Scale width to match the vertical scaling (viewportHeight / textureHeight)
-        val scaleFactor = viewport.worldHeight / currentBg.height.toFloat()
-        val renderedWidth = currentBg.width * scaleFactor
+        val scaleFactor = viewport.worldHeight / backgroundTexture.height.toFloat()
+        val renderedWidth = backgroundTexture.width * scaleFactor
 
         // Draw Current
-        game.batch.draw(currentBg, backgroundX, 0f, renderedWidth, viewport.worldHeight)
+        game.batch.draw(backgroundTexture, backgroundX, 0f, renderedWidth, viewport.worldHeight)
 
         // Draw Next (if needed to fill screen)
         val rightEdge = backgroundX + renderedWidth
         if (rightEdge < viewport.worldWidth) {
-            val nextBg = backgroundTextures[nextBgIndex]
-            val nextScaleFactor = viewport.worldHeight / nextBg.height.toFloat()
-            val nextRenderedWidth = nextBg.width * nextScaleFactor
-
-            game.batch.draw(nextBg, rightEdge, 0f, nextRenderedWidth, viewport.worldHeight)
-
-            // Handle edge case: very wide screen vs very narrow backgrounds
-            // If screen is wider than current + next, we might need more?
-            // For now assuming 2 images cover the screen (800+800 >= 1600 is usually enough for
-            // mobile/desktop)
-            // If we have very wide screens or tiny backgrounds, we'd need a loop here.
-            // Given assets are likely >= 800, this simple double-draw is sufficient.
+            game.batch.draw(backgroundTexture, rightEdge, 0f, renderedWidth, viewport.worldHeight)
         }
 
         // Draw Necks with Heads
@@ -764,16 +756,17 @@ class GameScreen(
 
         // 1. Hurt Flash
         if (hurtTimer > 0) {
-            shapeRenderer.color = Color(1f, 0f, 0f, 0.5f * (hurtTimer / 0.3f))
+            tempColor.set(1f, 0f, 0f, 0.5f * (hurtTimer / 0.3f))
+            shapeRenderer.color = tempColor
             shapeRenderer.rect(0f, 0f, viewport.worldWidth, viewport.worldHeight)
         }
 
         if (!isPracticeMode) {
             // 2. Status Bar
             var barWidth = 200f
-            var barHeight = 20f
+            var barHeight = 24f // Slightly thicker
             var barX = viewport.worldWidth / 2f - barWidth / 2f
-            var barY = viewport.worldHeight - 50f
+            var barY = viewport.worldHeight - 70f // Increased padding from top
             var fillColor = Color.CYAN
 
             if (flashTimer > 0) {
@@ -848,8 +841,8 @@ class GameScreen(
             val centerX = textX + firstCharLayout.width / 2f
             val rectX = centerX - underscoreWidth / 2f
             val yOffset =
-                    if (descenders.any { firstCharStr.contains(it, ignoreCase = true) }) 70f
-                    else 55f
+                    if (descenders.any { firstCharStr.contains(it, ignoreCase = true) }) 85f
+                    else 70f
             shapeRenderer.rect(rectX, textY - yOffset, underscoreWidth, 5f)
         }
         // Text Mode Underscore (Neon Pink)
@@ -1035,7 +1028,8 @@ class GameScreen(
         // Level / Streak Indicator
         // HUD is hidden in Autoplay (Credits)
         if (!isAutoplay) {
-             val levelCommonCenter = viewport.worldWidth - 60f
+             // Shifted from right edge to properly center labels on mobile
+             val levelCommonCenter = viewport.worldWidth - 70f
              
              if (isPracticeMode || isArcadeMode) {
                  // --- PRACTICE/TEXT/ARCADE MODE ---
@@ -1076,7 +1070,7 @@ class GameScreen(
              } else {
                  // --- NORMAL MODE ---
                  // Top: BEST LEVEL
-                 val bestLabel = "High Score"
+                 val bestLabel = "HIGH SCORE"
                  layout.setText(smallFont, bestLabel)
                  smallFont.draw(game.batch, bestLabel, levelCommonCenter - layout.width / 2, viewport.worldHeight - 30f)
                  
@@ -1129,7 +1123,7 @@ class GameScreen(
 
         // Pause Menu Logic
         if (pauseState != PauseState.NONE) {
-            val menuTitle = "PAUSED"
+            val menuTitle = if (pauseState == PauseState.EXIT_CONFIRM) "Exit to main menu. Are you sure?" else "PAUSED"
             layout.setText(uiFont, menuTitle)
             uiFont.draw(
                     game.batch,
@@ -1140,6 +1134,7 @@ class GameScreen(
 
             if (pauseState == PauseState.MAIN) drawPauseMainMenu()
             else if (pauseState == PauseState.AUDIO) drawAudioMenu()
+            else if (pauseState == PauseState.EXIT_CONFIRM) drawExitConfirmMenu()
         } else if (!gameStarted) {
             queueFont.draw(
                     game.batch,
@@ -1274,8 +1269,17 @@ class GameScreen(
         viewport.update(width, height, true) // True centers camera
         camera.position.set(viewport.worldWidth / 2f, viewport.worldHeight / 2f, 0f)
     }
-    override fun pause() {}
-    override fun resume() {}
+    override fun pause() {
+        if (gameStarted && pauseState == PauseState.NONE) {
+            pauseState = PauseState.MAIN
+            menuSelectedIndex = 0
+        }
+        game.soundManager.pauseMusic()
+    }
+
+    override fun resume() {
+        game.soundManager.resumeMusic()
+    }
     override fun hide() {}
     override fun dispose() {
         uiFont.dispose()
@@ -1283,6 +1287,7 @@ class GameScreen(
         queueFont.dispose()
         // generator.dispose() // Generator is disposed in init now
         shapeRenderer.dispose()
+        neckPool.clear()
 
         // Textures needed to be disposed manually before AssetManager.
         // Now AssetManager owns them. We do NOT dispose them here.
@@ -1352,7 +1357,12 @@ class GameScreen(
         if (pauseState == PauseState.NONE) return
 
         val currentListSize =
-                if (pauseState == PauseState.MAIN) mainMenuItems.size else audioMenuItems.size
+                when (pauseState) {
+                    PauseState.MAIN -> mainMenuItems.size
+                    PauseState.AUDIO -> audioMenuItems.size
+                    PauseState.EXIT_CONFIRM -> exitConfirmItems.size
+                    else -> 0
+                }
 
         if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
             menuSelectedIndex--
@@ -1370,6 +1380,7 @@ class GameScreen(
                 val selectedItem = mainMenuItems[menuSelectedIndex]
                 if (selectedItem == "Resume") {
                     pauseState = PauseState.NONE
+                    game.soundManager.resumeMusic()
                 } else if (selectedItem == "Difficulty") {
                     difficulty =
                             when (difficulty) {
@@ -1397,8 +1408,8 @@ class GameScreen(
                     pauseState = PauseState.AUDIO
                     menuSelectedIndex = 0
                 } else if (selectedItem == "Main Menu") {
-                    game.soundManager.stopMusic()
-                    game.screen = MenuScreen(game)
+                    pauseState = PauseState.EXIT_CONFIRM
+                    menuSelectedIndex = 1 // Default to 'No'
                 }
             } else if (pauseState == PauseState.AUDIO) {
                 val sm = game.soundManager
@@ -1418,6 +1429,14 @@ class GameScreen(
                         pauseState = PauseState.MAIN
                         menuSelectedIndex = 3
                     }
+                }
+            } else if (pauseState == PauseState.EXIT_CONFIRM) {
+                if (menuSelectedIndex == 0) { // Yes
+                    game.soundManager.stopMusic()
+                    game.screen = MenuScreen(game)
+                } else { // No
+                    pauseState = PauseState.MAIN
+                    menuSelectedIndex = mainMenuItems.indexOf("Main Menu").coerceAtLeast(0)
                 }
             }
         }
@@ -1475,6 +1494,7 @@ class GameScreen(
                 val selectedItem = mainMenuItems[menuSelectedIndex]
                 if (selectedItem == "Resume") {
                     pauseState = PauseState.NONE
+                    game.soundManager.resumeMusic()
                 } else if (selectedItem == "Difficulty") {
                     difficulty =
                             when (difficulty) {
@@ -1524,6 +1544,29 @@ class GameScreen(
                         menuSelectedIndex = 3
                     }
                 }
+            } else if (pauseState == PauseState.EXIT_CONFIRM) {
+                if (menuSelectedIndex == 0) { // Yes
+                    game.soundManager.stopMusic()
+                    game.screen = MenuScreen(game)
+                } else { // No
+                    pauseState = PauseState.MAIN
+                    menuSelectedIndex = mainMenuItems.indexOf("Main Menu").coerceAtLeast(0)
+                }
             }
+    }
+
+    private fun drawExitConfirmMenu() {
+        var startY = viewport.worldHeight / 2f + 50f
+        val gap = 50f
+        val centerX = viewport.worldWidth / 2f
+
+        exitConfirmItems.forEachIndexed { index, item ->
+            val isSelected = index == menuSelectedIndex
+            uiFont.color = if (isSelected) SELECTED_COLOR else Color.WHITE
+
+            layout.setText(uiFont, item)
+            uiFont.draw(game.batch, item, centerX - layout.width / 2, startY - (index * gap))
+        }
+        uiFont.color = Color.WHITE
     }
 }

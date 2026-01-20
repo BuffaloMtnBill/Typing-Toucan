@@ -18,6 +18,7 @@ class SoundManager {
     private var levelUpSound: Sound? = null
     private var levelUpPracticeSound: Sound? = null
     private var errorSound: Sound? = null
+    private var splashSound: Sound? = null
     private var bgMusic: Music? = null
 
     /** Controls whether sound effects are played. */
@@ -86,6 +87,7 @@ class SoundManager {
         levelUpSound = loadSound("assets/sfx_levelup.mp3")
         levelUpPracticeSound = loadSound("assets/sfx_levelup_practice.mp3")
         errorSound = loadSound("assets/sfx_error.mp3")
+        splashSound = loadSound("assets/minnowbyte.mp3")
 
         // Music
         bgMusic = loadMusic("assets/music_bg.mp3")
@@ -169,6 +171,11 @@ class SoundManager {
         }
     }
 
+    /** Plays the MinnowByte splash sound. */
+    fun playSplash() {
+        if (soundEnabled) splashSound?.play(1.0f)
+    }
+
     /** Starts playing the background music if enabled and not already playing. */
     fun playMusic() {
         if (!musicEnabled) return
@@ -208,6 +215,18 @@ class SoundManager {
         bgMusic?.stop()
     }
 
+    /** Pauses the background music. */
+    fun pauseMusic() {
+        bgMusic?.pause()
+    }
+
+    /** Resumes the background music. */
+    fun resumeMusic() {
+        if (musicEnabled) {
+            bgMusic?.play()
+        }
+    }
+
     /** Disposes of all audio assets. */
     fun dispose() {
         flapSounds.forEach { it.dispose() }
@@ -217,6 +236,7 @@ class SoundManager {
         levelUpSound?.dispose()
         levelUpPracticeSound?.dispose()
         errorSound?.dispose()
+        splashSound?.dispose()
         bgMusic?.dispose()
     }
 }

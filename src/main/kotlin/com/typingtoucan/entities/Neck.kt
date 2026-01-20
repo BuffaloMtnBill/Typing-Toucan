@@ -3,6 +3,7 @@ package com.typingtoucan.entities
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.math.Rectangle
+import com.badlogic.gdx.utils.Pool
 import kotlin.random.Random
 
 /**
@@ -14,9 +15,13 @@ import kotlin.random.Random
  * @property gapCenterY The vertical center of the gap between the obstacles.
  * @property isSnake Whether this obstacle uses snake graphics instead of giraffe necks.
  */
-class Neck(var x: Float, val gapCenterY: Float, val isSnake: Boolean = false) {
+class Neck() : Pool.Poolable {
+    var x: Float = 0f
+    var gapCenterY: Float = 0f
+    var isSnake: Boolean = false
+
     /** Index for selecting random head variations (if applicable). */
-    val headIndex = Random.nextInt(5)
+    var headIndex = 0
 
     /** Width of the collision hitbox. */
     val width = 80f
@@ -32,25 +37,48 @@ class Neck(var x: Float, val gapCenterY: Float, val isSnake: Boolean = false) {
     val minNeckHeight = 50f
 
     /** Top Y-coordinate of the bottom obstacle. */
-    val bottomHeight = gapCenterY - gap / 2f
+    val bottomHeight: Float
+        get() = gapCenterY - gap / 2f
 
     /** Bottom Y-coordinate of the top obstacle. */
-    val topY = gapCenterY + gap / 2f
+    val topY: Float
+        get() = gapCenterY + gap / 2f
 
     /** Height of the top obstacle bounds. Uses a large value to extend off-screen. */
     val topHeight = 2000f
 
     /** Collision bounds for the bottom obstacle. */
-    val bottomBounds = Rectangle(x, 0f, width, bottomHeight)
+    val bottomBounds = Rectangle(0f, 0f, width, 0f)
     
     /** Collision bounds for the top obstacle. */
-    val topBounds = Rectangle(x, topY, width, topHeight)
+    val topBounds = Rectangle(0f, 0f, width, topHeight)
 
     /** Tracks if this obstacle has been successfully passed by the player. */
     var scored = false
     
     /** Tracks if a collision has occurred with this obstacle. */
     var collided = false
+
+    fun init(x: Float, gapCenterY: Float, isSnake: Boolean) {
+        this.x = x
+        this.gapCenterY = gapCenterY
+        this.isSnake = isSnake
+        this.headIndex = Random.nextInt(if (isSnake) 2 else 5)
+        this.scored = false
+        this.collided = false
+        
+        bottomBounds.set(x, 0f, width, bottomHeight)
+        topBounds.set(x, topY, width, topHeight)
+    }
+
+    override fun reset() {
+        x = 0f
+        gapCenterY = 0f
+        isSnake = false
+        headIndex = 0
+        scored = false
+        collided = false
+    }
 
     /**
      * Updates the horizontal position of the obstacle.

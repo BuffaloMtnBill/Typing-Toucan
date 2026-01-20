@@ -28,6 +28,7 @@ class TypingToucanGame : Game() {
      * and sets the initial screen to [MenuScreen].
      */
     override fun create() {
+        com.badlogic.gdx.Gdx.input.setCatchKey(com.badlogic.gdx.Input.Keys.BACK, true)
         batch = SpriteBatch()
         soundManager = com.typingtoucan.systems.SoundManager()
 
@@ -39,10 +40,10 @@ class TypingToucanGame : Game() {
         assetManager.load("assets/title_background.png", Texture::class.java)
         assetManager.load("assets/victory_background.png", Texture::class.java)
 
-        // Block until all assets are loaded
-        assetManager.finishLoading()
+        // Assets started loading in background
 
-        setScreen(MenuScreen(this))
+        // Initialize the splash screen first
+        setScreen(com.typingtoucan.screens.SplashScreen(this))
     }
 
     /**

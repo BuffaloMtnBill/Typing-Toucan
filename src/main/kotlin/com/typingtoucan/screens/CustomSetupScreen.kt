@@ -60,7 +60,7 @@ class CustomSetupScreen(val game: TypingToucanGame) : Screen, InputProcessor {
         val generator =
                 FreeTypeFontGenerator(Gdx.files.internal("assets/OriginalSurfer-Regular.ttf"))
         val parameter = FreeTypeFontGenerator.FreeTypeFontParameter()
-        parameter.size = 24
+        parameter.size = 30 // Increased for mobile
         parameter.color = Color.WHITE
         parameter.borderColor = Color.BLACK
         parameter.borderWidth = 1f
@@ -68,7 +68,7 @@ class CustomSetupScreen(val game: TypingToucanGame) : Screen, InputProcessor {
 
         // Instruction Font (Smaller)
         val smallParam = FreeTypeFontGenerator.FreeTypeFontParameter()
-        smallParam.size = 18
+        smallParam.size = 22 // Increased for mobile
         smallParam.color = Color.WHITE
         smallParam.borderColor = Color.BLACK
         smallParam.borderWidth = 1f
@@ -305,7 +305,7 @@ class CustomSetupScreen(val game: TypingToucanGame) : Screen, InputProcessor {
     }
 
     override fun keyDown(keycode: Int): Boolean {
-        if (keycode == Input.Keys.ESCAPE) {
+        if (keycode == Input.Keys.ESCAPE || keycode == Input.Keys.BACK) {
             game.screen = MenuScreen(game)
             return true
         }
@@ -420,8 +420,12 @@ class CustomSetupScreen(val game: TypingToucanGame) : Screen, InputProcessor {
         camera.position.set(viewport.worldWidth / 2f, viewport.worldHeight / 2f, 0f)
         layoutGrid()
     }
-    override fun pause() {}
-    override fun resume() {}
+    override fun pause() {
+        game.soundManager.pauseMusic()
+    }
+    override fun resume() {
+        game.soundManager.resumeMusic()
+    }
     override fun hide() {}
     override fun dispose() {
         uiFont.dispose()
