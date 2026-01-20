@@ -13,6 +13,7 @@ import com.badlogic.gdx.audio.Sound
 class SoundManager {
     private val flapSounds = com.badlogic.gdx.utils.Array<Sound>()
     private val scoreSounds = com.badlogic.gdx.utils.Array<Sound>()
+    private val monkeySounds = com.badlogic.gdx.utils.Array<Sound>()
     private var crashSound: Sound? = null
     private var levelUpSound: Sound? = null
     private var levelUpPracticeSound: Sound? = null
@@ -75,6 +76,12 @@ class SoundManager {
             if (s != null) scoreSounds.add(s)
         }
 
+        // MONKEY: sfx_monkey1..3
+        for (i in 1..3) {
+            val s = loadSound("assets/sfx_monkey$i.mp3")
+            if (s != null) monkeySounds.add(s)
+        }
+
         crashSound = loadSound("assets/sfx_crash.mp3")
         levelUpSound = loadSound("assets/sfx_levelup.mp3")
         levelUpPracticeSound = loadSound("assets/sfx_levelup_practice.mp3")
@@ -123,6 +130,15 @@ class SoundManager {
     fun playScore() {
         if (soundEnabled && scoreSounds.size > 0) {
             scoreSounds.random().play(0.5f)
+        }
+    }
+
+    /** Plays a random monkey sound effect. */
+    fun playMonkey() {
+        if (soundEnabled && monkeySounds.size > 0) {
+            val id = monkeySounds.random().play(0.6f)
+            // Optional: Randomize pitch slightly?
+            // monkeySounds.random().setPitch(id, 0.9f + Math.random().toFloat() * 0.2f) 
         }
     }
 
@@ -196,6 +212,7 @@ class SoundManager {
     fun dispose() {
         flapSounds.forEach { it.dispose() }
         scoreSounds.forEach { it.dispose() }
+        monkeySounds.forEach { it.dispose() }
         crashSound?.dispose()
         levelUpSound?.dispose()
         levelUpPracticeSound?.dispose()

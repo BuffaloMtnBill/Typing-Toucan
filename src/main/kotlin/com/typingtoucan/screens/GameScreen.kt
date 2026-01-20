@@ -146,6 +146,8 @@ class GameScreen(
 
     // Monkey Decoration
     private var monkeyX = 500f
+    private var monkeyPassed = false
+
 
     // Cached Draw Strings
     private var cachedQueueStr = ""
@@ -154,8 +156,12 @@ class GameScreen(
     private val descenders = listOf("g", "j", "p", "q", "y") // Static allocation
 
     // Performance Caches
+    private val tempVec = com.badlogic.gdx.math.Vector3() // Reusable Vector3
     private val tempColor = Color() // Reusable color object
+    private var cachedMarkupLine = "" // For Text Mode
+    private var lastLocalProgress = -1 // For Text Mode
     private lateinit var toucanPainRegion: TextureRegion
+
     private val practiceModeLayout = GlyphLayout()
     private val startTextLayout = GlyphLayout()
     private val escTextLayout = GlyphLayout()
@@ -285,6 +291,7 @@ class GameScreen(
         val mWidth = currentMonkeyTexture.width * scale
         val distanceToSpawn = diffManager.scrollSpeed * nextNeckInterval
         monkeyX = viewport.worldWidth + distanceToSpawn - 90f - mWidth
+        monkeyPassed = false
 
         // Initialize Performance Caches
         toucanPainRegion = TextureRegion(toucanPainTexture)
@@ -495,6 +502,12 @@ class GameScreen(
         backgroundX -= 10f * delta
         groundX -= diffManager.scrollSpeed * delta
         monkeyX -= diffManager.scrollSpeed * delta
+        
+        // Monkey Sound Logic
+        if (!monkeyPassed && monkeyX < bird.x) {
+            monkeyPassed = true
+            soundManager.playMonkey()
+        }
 
         val currentBg = backgroundTextures[currentBgIndex]
         val scaleFactor = viewport.worldHeight / currentBg.height.toFloat()
@@ -531,19 +544,18 @@ class GameScreen(
             totalNecksSpawned++
         }
 
-        val iterator = necks.iterator()
-        while (iterator.hasNext()) {
-            val neck = iterator.next()
+        for (i in necks.size - 1 downTo 0) {
+            val neck = necks[i]
             neck.update(delta, diffManager.scrollSpeed)
 
             if (neck.x + neck.width < 0) {
-                iterator.remove()
+                necks.removeIndex(i)
+                continue
             }
 
             if (!neck.scored && neck.x < bird.x) {
                 neck.scored = true
                 score++
-                soundManager.playScore()
                 soundManager.playScore()
                 progressionPoints++
                 if (progressionPoints >= 5) {
@@ -594,7 +606,7 @@ class GameScreen(
 
             if (!neck.collided &&
                             (Intersector.overlaps(bird.bounds, neck.bottomBounds) ||
-                                    Intersector.overlaps(bird.bounds, neck.topBounds))
+                                     Intersector.overlaps(bird.bounds, neck.topBounds))
             ) {
                 if (!isPracticeMode || customSource is com.typingtoucan.systems.TextSnippetSource) {
                     // Neck collision is now non-fatal for Practice/Text too (just penalizes)
@@ -677,6 +689,7 @@ class GameScreen(
         val mWidth = currentMonkeyTexture.width * scale
         val distanceToSpawn = diffManager.scrollSpeed * nextNeckInterval
         monkeyX = viewport.worldWidth + distanceToSpawn - 90f - mWidth
+        monkeyPassed = false
 
         updateQueueString() // Ensure queue is visualy sync
     }
@@ -976,71 +989,34 @@ class GameScreen(
             // Enable markup for precise alignment
             queueFont.data.markupEnabled = true
 
-            // Helper to draw centered line
-            fun drawLine(text: String, startXUnused: Float, y: Float, alpha: Float = 1f, isCurrent: Boolean = false, localProg: Int = 0) {
+            // Helper to draw centered line optimized for GC
+            fun drawLine(text: String, y: Float, alpha: Float = 1f, isCurrent: Boolean = false, localProg: Int = 0) {
                  if (text.isEmpty()) return
                  
-                 var displayText = text
-                 var nextCharWidth = 20f // Default
-                 val fullWidth: Float
-                 
-                 if (isCurrent) {
-                     val typed = text.take(localProg)
-                     val remain = text.drop(localProg)
+                 // Measure full width (raw text)
+                 layout.setText(queueFont, text)
+                 val fullWidth = layout.width
+                 val startX = viewport.worldWidth / 2f - fullWidth / 2f
+
+                 if (isCurrent && localProg > 0) {
+                     // Draw Green (Typed) Part
+                     queueFont.color = tempColor.set(0.2f, 1f, 0.2f, alpha) // #33FF33
+                     queueFont.draw(game.batch, text, startX, y, 0, localProg, 0f, com.badlogic.gdx.utils.Align.left, false)
                      
-                     // Calculate metrics on raw text first
-                     layout.setText(queueFont, text)
-                     fullWidth = layout.width
-                     
-                     layout.setText(queueFont, typed)
+                     // Measure Typed Width to offset remaining part
+                     layout.setText(queueFont, text, 0, localProg, queueFont.color, 0f, com.badlogic.gdx.utils.Align.left, false, null)
                      val typedWidth = layout.width
-                     
-                     if (remain.isNotEmpty()) {
-                         val nextChar = remain.first().toString()
-                         layout.setText(queueFont, nextChar)
-                         nextCharWidth = layout.width
+
+                     // Draw White (Remaining) Part
+                     queueFont.color = tempColor.set(1f, 1f, 1f, alpha)
+                     if (localProg < text.length) {
+                         queueFont.draw(game.batch, text, startX + typedWidth, y, localProg, text.length, 0f, com.badlogic.gdx.utils.Align.left, false)
                      }
-                     
-                     // Construct Markup String
-                     // Green: [#33FF33], White: [#FFFFFF]
-                     // Escape brackets in text? Assume passages are safe or simple replace
-                     val safeTyped = typed.replace("[", "[[")
-                     val safeRemain = remain.replace("[", "[[")
-                     
-                     displayText = "[#33FF33]${safeTyped}[]${safeRemain}"
-                     
-                     // Draw Underscore here (Batch based? Or defer to Shape?)
-                     // Drawing a sprite/texture for underscore is better for "Neon" glow in Batch?
-                     // Or use ShapeRenderer. But we are in Batch.
-                     // Batch must pause for Shape. Expensive.
-                     // Let's use a simple batch-draw logic for underscore if we have a white pixel?
-                     // We don't have a guaranteed 1x1 white pixel.
-                     // But we have `toucanPainTexture` or `ground`? No, risking UVs.
-                     // We can draw a text "_" in Pink?
-                     // Or switch phases.
-                     
-                     // Let's use the 'underscore' of the font itself?
-                     // Or just switch phases later? 
-                     // I will separate the Underscore to a ShapeRenderer logic block *after* batch end?
-                     // But the Text Mode block is *inside* Batch Phase 2.
-                     // Shape Phase is *before*.
-                     // I should calculate the Underscore pos here, store it, and draw in next frame? No.
-                     // Or I can just calculate it in Shape Phase (duplicate calc).
-                     // Duplicate calc is safest.
-                     
-                     // RENDER TEXT
-                     queueFont.color = Color(1f, 1f, 1f, alpha) // Base alpha
-                     layout.setText(queueFont, displayText) // Layout with markup
-                     val x = viewport.worldWidth / 2f - fullWidth / 2f // Use raw fullWidth for centering?
-                     // Wait, layout with markup might have different width if markup changes kern? Usually no.
-                     // Using 'fullWidth' from raw string is safer for centering consistency.
-                     queueFont.draw(game.batch, displayText, x, y)
-                     
                  } else {
-                     queueFont.color = Color(1f, 1f, 1f, 0.4f * alpha)
-                     layout.setText(queueFont, text)
-                     val x = viewport.worldWidth / 2f - layout.width / 2f
-                     queueFont.draw(game.batch, text, x, y)
+                     // Draw Entire Line Dim (if not current) or pure white (if current but progress 0)
+                     val baseAlpha = if (isCurrent) 1f else 0.4f
+                     queueFont.color = tempColor.set(1f, 1f, 1f, baseAlpha * alpha)
+                     queueFont.draw(game.batch, text, startX, y, 0, text.length, 0f, com.badlogic.gdx.utils.Align.left, false)
                  }
                  queueFont.color = Color.WHITE
             }
@@ -1051,23 +1027,17 @@ class GameScreen(
             // If shiftY goes -70 -> 0.
             // PrevY should equal CurrentY + 70.
             // So PrevY starts at 0, goes to +70. Correct.
+            // Draw Previous (Fading out and moving up)
             if (state.prevLine.isNotEmpty() && progressFactor < 1f) {
-                drawLine(state.prevLine, 0f, startY + shiftY + 70f, alpha = 1f - progressFactor)
+                drawLine(state.prevLine, startY + shiftY + 70f, alpha = 1f - progressFactor)
             }
             
             // Draw Current
-            drawLine(state.currentLine, 0f, startY + shiftY, isCurrent = true, localProg = state.localProgress)
+            drawLine(state.currentLine, startY + shiftY, isCurrent = true, localProg = state.localProgress)
             
             // Draw Next
-            // Pos: -70 -> -70+shiftY? 
-            // Next starts at -140 (relative to target 0).
-            // Wait.
-            // Current starts at -70, goes to 0. (shiftY)
-            // Next starts at -140? No.
-            // Next is physically below Current. Always -70 offset.
-            // So NextY = CurrentY - 70.
             if (state.nextLine.isNotEmpty()) {
-                drawLine(state.nextLine, 0f, startY + shiftY - 70f, alpha = 0.5f) // Always dim
+                drawLine(state.nextLine, startY + shiftY - 70f, alpha = 0.5f) // Always dim
             }
         }
 
@@ -1488,7 +1458,8 @@ class GameScreen(
     private fun handlePauseMenuTouch() {
          val touchX = Gdx.input.x.toFloat()
          val touchY = Gdx.input.y.toFloat()
-         val worldPos = camera.unproject(com.badlogic.gdx.math.Vector3(touchX, touchY, 0f))
+         tempVec.set(touchX, touchY, 0f)
+         val worldPos = camera.unproject(tempVec)
          
          val centerX = viewport.worldWidth / 2f
          var startY = viewport.worldHeight / 2f + 100f

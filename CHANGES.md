@@ -5,15 +5,15 @@ This document outlines recommended changes to improve the efficiency of **Typing
 ## 1. Memory & Allocation (Reduce Garbage Collection)
 Low-end devices struggle with frequent Garbage Collection (GC) pauses. Minimizing object creation in the `render` loop (60 times/second) is critical.
 
--   **[ ] Re-use `Vector3` for Input Processing**
-    -   **Location**: `GameScreen.kt`
-    -   **Issue**: `handlePauseMenuTouch` creates a new `Vector3` every time the screen is touched (via `camera.unproject`).
-    -   **Fix**: Create a `private val tempVec = Vector3()` class member and reuse it.
+- [x] Re-use `Vector3` for Input Processing
+    - **Location**: `GameScreen.kt`
+    - **Issue**: `handlePauseMenuTouch` creates a new `Vector3` every time the screen is touched (via `camera.unproject`).
+    - **Fix**: Create a `private val tempVec = Vector3()` class member and reuse it.
 
--   **[ ] Eliminate Iterator Allocations in Update Loop**
-    -   **Location**: `GameScreen.kt`
-    -   **Issue**: `necks.iterator()` (or the `for (neck in necks)` loop) may allocate an `ArrayIterator` object every frame.
-    -   **Fix**: Use an index-based loop:
+- [x] Eliminate Iterator Allocations in Update Loop
+    - **Location**: `GameScreen.kt`
+    - **Issue**: `necks.iterator()` (or the `for (neck in necks)` loop) may allocate an `ArrayIterator` object every frame.
+    - **Fix**: Use an index-based loop:
         ```kotlin
         for (i in necks.size - 1 downTo 0) {
             val neck = necks[i]
@@ -22,10 +22,10 @@ Low-end devices struggle with frequent Garbage Collection (GC) pauses. Minimizin
         }
         ```
 
--   **[ ] Optimize String Allocations in Text Mode Rendering**
-    -   **Location**: `GameScreen.kt` (lines ~980-1044, `drawLine` helper)
-    -   **Issue**: Extensive use of `substring` (`take`, `drop`), `replace`, and String interpolation inside the `render` method.
-    -   **Fix**: 
+- [x] Optimize String Allocations in Text Mode Rendering
+    - **Location**: `GameScreen.kt` (lines ~980-1044, `drawLine` helper)
+    - **Issue**: Extensive use of `substring` (`take`, `drop`), `replace`, and String interpolation inside the `render` method.
+    - **Fix**: 
         1. Use `GlyphLayout.setText(font, text, start, end...)` to measure substrings without creating new String objects.
         2. Avoid `replace` inside the loop. Sanitize text once upon loading.
         3. Recalculate text strings only when input changes, not every frame.
@@ -46,10 +46,10 @@ Reducing draw calls and state switches allows the GPU to work efficiently.
 
 ## 3. General Logic Fixes
 
--   **[ ] Remove Duplicate Audio Call**
-    -   **Location**: `GameScreen.kt` (line 547)
-    -   **Issue**: `soundManager.playScore()` is called twice consecutively.
-    -   **Fix**: Remove one line.
+- [x] Remove Duplicate Audio Call
+    - **Location**: `GameScreen.kt` (line 547)
+    - **Issue**: `soundManager.playScore()` is called twice consecutively.
+    - **Fix**: Remove one line.
 
 ## Plan of Action
 1.  **Phase 1 (Quick Wins)**: Fix `Vector3`, Loop Iterators, and Duplicate Audio.
