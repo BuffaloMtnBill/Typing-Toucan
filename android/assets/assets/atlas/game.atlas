@@ -1,0 +1,323 @@
+
+game.png
+size: 2048, 2048
+format: RGBA8888
+filter: Nearest, Nearest
+repeat: none
+anaconda_long
+  rotate: false
+  xy: 1543, 3
+  size: 256, 1024
+  orig: 256, 1024
+  offset: 0, 0
+  index: 0
+banana_monkey
+  rotate: false
+  xy: 259, 1065
+  size: 512, 512
+  orig: 512, 512
+  offset: 0, 0
+  index: -1
+banana_monkey
+  rotate: false
+  xy: 773, 1029
+  size: 512, 512
+  orig: 512, 512
+  offset: 0, 0
+  index: 1
+banana_monkey
+  rotate: false
+  xy: 1287, 1029
+  size: 512, 512
+  orig: 512, 512
+  offset: 0, 0
+  index: 2
+banana_monkey
+  rotate: false
+  xy: 1, 551
+  size: 512, 512
+  orig: 512, 512
+  offset: 0, 0
+  index: 3
+giraffe_head
+  rotate: false
+  xy: 907, 1543
+  size: 256, 256
+  orig: 256, 256
+  offset: 0, 0
+  index: -1
+giraffe_head
+  rotate: false
+  xy: 1165, 1543
+  size: 256, 256
+  orig: 256, 256
+  offset: 0, 0
+  index: 0
+giraffe_head
+  rotate: false
+  xy: 1423, 1543
+  size: 256, 256
+  orig: 256, 256
+  offset: 0, 0
+  index: 1
+giraffe_head
+  rotate: false
+  xy: 1681, 1543
+  size: 256, 256
+  orig: 256, 256
+  offset: 0, 0
+  index: 2
+giraffe_head
+  rotate: false
+  xy: 1, 1321
+  size: 256, 256
+  orig: 256, 256
+  offset: 0, 0
+  index: 3
+ground
+  rotate: false
+  xy: 1, 1579
+  size: 300, 220
+  orig: 300, 220
+  offset: 0, 0
+  index: -1
+ground_anim
+  rotate: false
+  xy: 303, 1579
+  size: 300, 220
+  orig: 300, 220
+  offset: 0, 0
+  index: 1
+ground_anim
+  rotate: false
+  xy: 605, 1579
+  size: 300, 220
+  orig: 300, 220
+  offset: 0, 0
+  index: 2
+old_monkey
+  rotate: false
+  xy: 515, 515
+  size: 512, 512
+  orig: 512, 512
+  offset: 0, 0
+  index: -1
+old_monkey
+  rotate: false
+  xy: 1029, 515
+  size: 512, 512
+  orig: 512, 512
+  offset: 0, 0
+  index: 1
+old_monkey
+  rotate: false
+  xy: 1, 37
+  size: 512, 512
+  orig: 512, 512
+  offset: 0, 0
+  index: 2
+old_monkey
+  rotate: false
+  xy: 515, 1
+  size: 512, 512
+  orig: 512, 512
+  offset: 0, 0
+  index: 3
+toucan
+  rotate: false
+  xy: 1029, 1
+  size: 512, 512
+  orig: 512, 512
+  offset: 0, 0
+  index: 0
+
+game2.png
+size: 2048, 2048
+format: RGBA8888
+filter: Nearest, Nearest
+repeat: none
+background
+  rotate: false
+  xy: 1, 515
+  size: 1024, 1024
+  orig: 1024, 1024
+  offset: 0, 0
+  index: -1
+giraffe1
+  rotate: false
+  xy: 1027, 515
+  size: 256, 1024
+  orig: 256, 1024
+  offset: 0, 0
+  index: -1
+giraffe2
+  rotate: false
+  xy: 1285, 515
+  size: 256, 1024
+  orig: 256, 1024
+  offset: 0, 0
+  index: -1
+giraffe3
+  rotate: false
+  xy: 1543, 515
+  size: 256, 1024
+  orig: 256, 1024
+  offset: 0, 0
+  index: -1
+toucan
+  rotate: false
+  xy: 1, 1
+  size: 512, 512
+  orig: 512, 512
+  offset: 0, 0
+  index: 1
+toucan
+  rotate: false
+  xy: 515, 1
+  size: 512, 512
+  orig: 512, 512
+  offset: 0, 0
+  index: 2
+toucan
+  rotate: false
+  xy: 1029, 1
+  size: 512, 512
+  orig: 512, 512
+  offset: 0, 0
+  index: 3
+
+game3.png
+size: 2048, 2048
+format: RGBA8888
+filter: Nearest, Nearest
+repeat: none
+background_campfire
+  rotate: false
+  xy: 1, 515
+  size: 1024, 1024
+  orig: 1024, 1024
+  offset: 0, 0
+  index: -1
+giraffe4
+  rotate: false
+  xy: 1027, 515
+  size: 256, 1024
+  orig: 256, 1024
+  offset: 0, 0
+  index: -1
+giraffe5
+  rotate: false
+  xy: 1285, 515
+  size: 256, 1024
+  orig: 256, 1024
+  offset: 0, 0
+  index: -1
+giraffe_long
+  rotate: false
+  xy: 1543, 515
+  size: 256, 1024
+  orig: 256, 1024
+  offset: 0, 0
+  index: 0
+toucan_pain
+  rotate: false
+  xy: 1, 1
+  size: 512, 512
+  orig: 512, 512
+  offset: 0, 0
+  index: -1
+young_monkey
+  rotate: false
+  xy: 515, 1
+  size: 512, 512
+  orig: 512, 512
+  offset: 0, 0
+  index: -1
+young_monkey
+  rotate: false
+  xy: 1029, 1
+  size: 512, 512
+  orig: 512, 512
+  offset: 0, 0
+  index: 1
+
+game4.png
+size: 2048, 2048
+format: RGBA8888
+filter: Nearest, Nearest
+repeat: none
+anaconda_long
+  rotate: false
+  xy: 1543, 515
+  size: 255, 1024
+  orig: 255, 1024
+  offset: 0, 0
+  index: 1
+background_jungle_var
+  rotate: false
+  xy: 1, 515
+  size: 1024, 1024
+  orig: 1024, 1024
+  offset: 0, 0
+  index: -1
+giraffe_long
+  rotate: false
+  xy: 1027, 515
+  size: 256, 1024
+  orig: 256, 1024
+  offset: 0, 0
+  index: 1
+giraffe_long
+  rotate: false
+  xy: 1285, 515
+  size: 256, 1024
+  orig: 256, 1024
+  offset: 0, 0
+  index: 2
+young_monkey
+  rotate: false
+  xy: 1, 1
+  size: 512, 512
+  orig: 512, 512
+  offset: 0, 0
+  index: 2
+young_monkey
+  rotate: false
+  xy: 515, 1
+  size: 512, 512
+  orig: 512, 512
+  offset: 0, 0
+  index: 3
+
+game5.png
+size: 2048, 2048
+format: RGBA8888
+filter: Nearest, Nearest
+repeat: none
+background_river
+  rotate: false
+  xy: 1, 1
+  size: 1024, 1024
+  orig: 1024, 1024
+  offset: 0, 0
+  index: -1
+giraffe_long
+  rotate: false
+  xy: 1027, 1
+  size: 255, 1024
+  orig: 255, 1024
+  offset: 0, 0
+  index: 3
+
+game6.png
+size: 2048, 2048
+format: RGBA8888
+filter: Nearest, Nearest
+repeat: none
+background_temple
+  rotate: false
+  xy: 1, 1
+  size: 1024, 1024
+  orig: 1024, 1024
+  offset: 0, 0
+  index: -1

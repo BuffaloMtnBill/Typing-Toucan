@@ -1,14 +1,11 @@
 pluginManagement {
     repositories {
-        mavenCentral()
         gradlePluginPortal()
-        maven { url = uri("https://oss.sonatype.org/content/repositories/snapshots/") }
         google()
+        mavenCentral()
     }
 }
 
-plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
-}
+rootProject.name = "Typing-Toucan"
 
-rootProject.name = "TypingToucan"
+include(":core", ":desktop", ":android")
