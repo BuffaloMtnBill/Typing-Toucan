@@ -1,0 +1,52 @@
+> Task :checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :compileKotlin UP-TO-DATE
+> Task :compileJava NO-SOURCE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+
+> Task :packTextures
+Packing textures from src/main/resources/assets to src/main/resources/assets/atlas...
+Reading: /home/will/Antigravity/Typing-Toucan/src/main/resources/assets
+java.lang.RuntimeException: Error packing images.
+	at com.badlogic.gdx.tools.texturepacker.TexturePacker.process(TexturePacker.java:754)
+	at com.badlogic.gdx.tools.texturepacker.TexturePacker.process(TexturePacker.java:741)
+	at com.typingtoucan.utils.PackTexturesKt.main(PackTextures.kt:22)
+	at com.typingtoucan.utils.PackTexturesKt.main(PackTextures.kt)
+Caused by: java.lang.Exception: Error processing directory: /home/will/Antigravity/Typing-Toucan/src/main/resources/assets
+	at com.badlogic.gdx.tools.FileProcessor.process(FileProcessor.java:158)
+	at com.badlogic.gdx.tools.texturepacker.TexturePackerFileProcessor.process(TexturePackerFileProcessor.java:135)
+	at com.badlogic.gdx.tools.FileProcessor.process(FileProcessor.java:122)
+	at com.badlogic.gdx.tools.texturepacker.TexturePackerFileProcessor.process(TexturePackerFileProcessor.java:117)
+	at com.badlogic.gdx.tools.texturepacker.TexturePacker.process(TexturePacker.java:752)
+	... 3 more
+Caused by: java.lang.RuntimeException: Image does not fit within max page height 2048 and Y edge padding 2*2: anaconda_long 512x2048
+	at com.badlogic.gdx.tools.texturepacker.MaxRectsPacker.packPage(MaxRectsPacker.java:134)
+	at com.badlogic.gdx.tools.texturepacker.MaxRectsPacker.pack(MaxRectsPacker.java:89)
+	at com.badlogic.gdx.tools.texturepacker.TexturePacker.pack(TexturePacker.java:173)
+	at com.badlogic.gdx.tools.texturepacker.TexturePackerFileProcessor.pack(TexturePackerFileProcessor.java:290)
+	at com.badlogic.gdx.tools.texturepacker.TexturePackerFileProcessor.processDir(TexturePackerFileProcessor.java:285)
+	at com.badlogic.gdx.tools.FileProcessor.process(FileProcessor.java:156)
+	... 7 more
+
+> Task :packTextures FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':packTextures'.
+> Process 'command '/usr/lib64/jvm/java-11-openjdk-11/bin/java'' finished with non-zero exit value 1
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.10/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 2s
+3 actionable tasks: 1 executed, 2 up-to-date
