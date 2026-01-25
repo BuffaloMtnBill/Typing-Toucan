@@ -5,3 +5,4 @@ bin/
 .idea/
 *.iml
 .DS_Store
+local.properties
